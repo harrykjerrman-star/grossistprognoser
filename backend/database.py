@@ -9,6 +9,7 @@ def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
 
@@ -23,6 +24,16 @@ def init_db() -> None:
             password_hash TEXT    NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS suppliers (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            name             TEXT    UNIQUE NOT NULL,
+            contact_person   TEXT    NOT NULL DEFAULT '',
+            email            TEXT    NOT NULL DEFAULT '',
+            phone            TEXT    NOT NULL DEFAULT '',
+            lead_time_days   INTEGER NOT NULL DEFAULT 3,
+            min_order_qty    INTEGER NOT NULL DEFAULT 1
+        );
+
         CREATE TABLE IF NOT EXISTS products (
             id                INTEGER PRIMARY KEY AUTOINCREMENT,
             name              TEXT    UNIQUE NOT NULL,
@@ -30,7 +41,9 @@ def init_db() -> None:
             unit              TEXT    NOT NULL DEFAULT 'st',
             stock_initialized INTEGER NOT NULL DEFAULT 0,
             stock_updated_at  TEXT,
-            stock_sync_date   TEXT
+            stock_sync_date   TEXT,
+            supplier_id       INTEGER REFERENCES suppliers(id),
+            price             REAL    NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS sales (
@@ -52,14 +65,28 @@ def init_db() -> None:
 
         CREATE INDEX IF NOT EXISTS idx_expiry_product
             ON expiry_dates(product_id, expiry_date);
+
+        CREATE TABLE IF NOT EXISTS waste (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL REFERENCES products(id),
+            date       TEXT    NOT NULL,
+            quantity   INTEGER NOT NULL,
+            reason     TEXT    NOT NULL DEFAULT 'övrigt'
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_waste_product_date
+            ON waste(product_id, date);
     """)
 
-    # Migrate existing databases that pre-date the new columns
-    for sql in [
+    # Safe migrations for older databases
+    migrations = [
         "ALTER TABLE products ADD COLUMN stock_initialized INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE products ADD COLUMN stock_updated_at  TEXT",
         "ALTER TABLE products ADD COLUMN stock_sync_date   TEXT",
-    ]:
+        "ALTER TABLE products ADD COLUMN supplier_id       INTEGER REFERENCES suppliers(id)",
+        "ALTER TABLE products ADD COLUMN price             REAL NOT NULL DEFAULT 0",
+    ]
+    for sql in migrations:
         try:
             cur.execute(sql)
         except sqlite3.OperationalError:

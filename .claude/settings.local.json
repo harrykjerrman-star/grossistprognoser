@@ -3,7 +3,16 @@
     "allow": [
       "Bash(gh auth *)",
       "PowerShell(gh auth status 2>&1)",
-      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); gh --version 2>&1)"
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); gh --version 2>&1)",
+      "Bash(python backend/test_startup.py)",
+      "Bash(python -c \"import app\")",
+      "Bash(python -c \"import app; print\\('app OK'\\)\")",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Bash(pip install *)",
+      "Bash(timeout 5 python app.py)",
+      "Bash(git commit *)"
     ]
   }
 }
