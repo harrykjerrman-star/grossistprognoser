@@ -188,6 +188,88 @@ def demo():
         return jsonify({"error": str(exc)}), 500
 
 
+@app.post("/api/upload-stock")
+@require_auth
+def upload_stock():
+    """Accept Excel/CSV with columns 'vara' and 'lager', update current_stock."""
+    if "file" not in request.files:
+        return jsonify({"error": "Ingen fil uppladdad"}), 400
+
+    f = request.files["file"]
+    name = (f.filename or "").lower()
+
+    try:
+        if name.endswith(".csv"):
+            df = pd.read_csv(f, encoding="utf-8-sig")
+        elif name.endswith((".xlsx", ".xls")):
+            df = pd.read_excel(f)
+        else:
+            return jsonify({"error": "Stödjer bara CSV och Excel"}), 400
+
+        df.columns = df.columns.str.lower().str.strip()
+
+        VARA_NAMES  = {"vara", "produkt", "product", "artikel", "item"}
+        LAGER_NAMES = {"lager", "stock", "saldo", "lagerantal", "antal", "quantity"}
+
+        col_vara  = next((c for c in df.columns if c in VARA_NAMES), None)
+        col_lager = next((c for c in df.columns if c in LAGER_NAMES), None)
+
+        missing = [n for n, c in [("vara", col_vara), ("lager", col_lager)] if not c]
+        if missing:
+            return jsonify({
+                "error": f"Saknar kolumn(er): {', '.join(missing)}. "
+                         f"Filen har: {', '.join(df.columns.tolist())}"
+            }), 400
+
+        conn = get_connection()
+        updated, skipped = 0, 0
+
+        for _, row in df.iterrows():
+            try:
+                product_name = str(row[col_vara]).strip()
+                stock = int(float(str(row[col_lager])))
+                if not product_name or product_name == "nan":
+                    continue
+            except (ValueError, TypeError):
+                skipped += 1
+                continue
+
+            result = conn.execute(
+                "UPDATE products SET current_stock = ? WHERE name = ?",
+                (stock, product_name),
+            )
+            if result.rowcount > 0:
+                updated += 1
+            else:
+                skipped += 1
+
+        conn.commit()
+        conn.close()
+
+        suffix = f", {skipped} hoppades över (produkt saknas i databasen)" if skipped else ""
+        return jsonify({
+            "success": True,
+            "message": f"Uppdaterade lager för {updated} produkt(er){suffix}",
+            "updated": updated,
+            "skipped": skipped,
+        })
+
+    except Exception as exc:
+        return jsonify({"error": f"Fel vid uppladdning: {exc}"}), 500
+
+
+@app.get("/api/stock-template")
+@require_auth
+def stock_template():
+    """Serve the stock update Excel template."""
+    path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "lager_exempel.xlsx")
+    )
+    if not os.path.exists(path):
+        return jsonify({"error": "Mallfilen hittades inte på servern"}), 404
+    return send_file(path, as_attachment=True, download_name="lager_mall.xlsx")
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=False, host="0.0.0.0", port=port)

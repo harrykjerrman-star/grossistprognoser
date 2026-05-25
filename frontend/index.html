@@ -74,10 +74,10 @@
     <!-- Alert -->
     <div id="alert" class="hidden rounded-lg px-4 py-3 text-sm flex items-center gap-2"></div>
 
-    <!-- Top cards: Upload + Demo -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- Top cards: Upload + Demo + Stock -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-      <!-- Upload -->
+      <!-- Upload försäljning -->
       <div class="bg-slate-800 rounded-xl p-6 border border-slate-700">
         <h2 class="font-semibold text-white mb-1 flex items-center gap-2">
           <span>📤</span> Ladda upp försäljningsdata
@@ -112,6 +112,31 @@
           class="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
           Generera demo-data
         </button>
+      </div>
+
+      <!-- Uppdatera lager via fil -->
+      <div class="bg-slate-800 rounded-xl p-6 border border-slate-700">
+        <h2 class="font-semibold text-white mb-1 flex items-center gap-2">
+          <span>🏭</span> Uppdatera lager
+        </h2>
+        <p class="text-xs text-slate-500 mb-4">
+          Excel med kolumner: <code class="text-violet-400">vara, lager</code>.
+          <button onclick="downloadTemplate()" class="text-violet-400 hover:text-violet-300 hover:underline ml-1 transition-colors">
+            Ladda ner mall ↓
+          </button>
+        </p>
+        <div class="flex gap-2">
+          <label class="flex-1 cursor-pointer">
+            <input type="file" id="stockFileInput" accept=".csv,.xlsx,.xls" class="hidden" onchange="onStockFileSelected(this)">
+            <div id="stockFileLabel" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg px-3 py-2.5 text-center text-sm text-slate-400 transition-colors truncate">
+              Välj Excel/CSV…
+            </div>
+          </label>
+          <button id="stockUploadBtn" onclick="uploadStock()"
+            class="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
+            Uppdatera
+          </button>
+        </div>
       </div>
     </div>
 
@@ -200,6 +225,22 @@
       </div>
     </div>
 
+    <!-- Stock overview -->
+    <div class="bg-slate-800 rounded-xl border border-slate-700">
+      <div class="px-6 py-5 border-b border-slate-700 flex items-center justify-between">
+        <h2 class="font-semibold text-white flex items-center gap-2">
+          <span>📦</span> Lageröversikt
+        </h2>
+        <button onclick="loadStockTable()"
+          class="text-xs text-slate-500 hover:text-white transition-colors px-2 py-1 rounded hover:bg-slate-700">
+          ↺ Uppdatera
+        </button>
+      </div>
+      <div id="stockContainer" class="p-6">
+        <p class="text-slate-600 text-sm text-center py-8">Ladda data för att se lagersaldo</p>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -219,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showDashboard();
     loadProducts();
     loadRecommendations();
+    loadStockTable();
   }
 
   document.getElementById('loginForm').addEventListener('submit', login);
@@ -342,6 +384,7 @@ async function uploadFile() {
     showAlert(data.message, 'success');
     await loadProducts();
     await loadRecommendations();
+    await loadStockTable();
   } catch (err) {
     showAlert(err.message, 'error');
   } finally {
@@ -360,6 +403,7 @@ async function generateDemo() {
     showAlert(data.message, 'success');
     await loadProducts();
     await loadRecommendations();
+    await loadStockTable();
   } catch (err) {
     showAlert(err.message, 'error');
   } finally {
@@ -590,6 +634,131 @@ async function loadRecommendations() {
 
   } catch (err) {
     c.innerHTML = `<p class="text-red-400 text-sm text-center py-8">Fel: ${err.message}</p>`;
+  }
+}
+
+// ============================================================
+// Stock upload
+// ============================================================
+function onStockFileSelected(input) {
+  const name = input.files[0]?.name || '';
+  document.getElementById('stockFileLabel').textContent = name || 'Välj Excel/CSV…';
+}
+
+async function uploadStock() {
+  const file = document.getElementById('stockFileInput').files[0];
+  if (!file) { showAlert('Välj en lagerfil att ladda upp', 'error'); return; }
+
+  const btn = document.getElementById('stockUploadBtn');
+  btn.textContent = 'Laddar…'; btn.disabled = true;
+
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res  = await api('/api/upload-stock', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showAlert(data.message, 'success');
+    await loadProducts();
+    await loadRecommendations();
+    await loadStockTable();
+  } catch (err) {
+    showAlert(err.message, 'error');
+  } finally {
+    btn.textContent = 'Uppdatera'; btn.disabled = false;
+  }
+}
+
+async function downloadTemplate() {
+  try {
+    const res = await api('/api/stock-template');
+    if (!res.ok) { showAlert('Kunde inte ladda ner mallen', 'error'); return; }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'lager_mall.xlsx';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  } catch (err) {
+    showAlert(err.message, 'error');
+  }
+}
+
+// ============================================================
+// Stock overview table
+// ============================================================
+async function loadStockTable() {
+  const c = document.getElementById('stockContainer');
+  try {
+    const data = await (await api('/api/products')).json();
+
+    if (!data.length) {
+      c.innerHTML = '<p class="text-slate-600 text-sm text-center py-8">Inga produkter ännu.</p>';
+      return;
+    }
+
+    c.innerHTML = `
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-slate-500 text-xs uppercase tracking-wide text-left border-b border-slate-700">
+              <th class="pb-3 pr-4 font-medium">Produkt</th>
+              <th class="pb-3 pr-4 font-medium text-right">Lagersaldo (st)</th>
+              <th class="pb-3 font-medium text-right">Ändra &amp; spara</th>
+            </tr>
+          </thead>
+          <tbody id="stockTbody" class="divide-y divide-slate-700/40"></tbody>
+        </table>
+      </div>`;
+
+    const tbody = document.getElementById('stockTbody');
+    data.forEach(p => {
+      const safeId = 'si_' + p.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-700/10 transition-colors';
+      tr.innerHTML = `
+        <td class="py-3 pr-4 font-medium text-white">${p.name}</td>
+        <td class="py-3 pr-4 text-right">
+          <span class="text-slate-300 font-mono" id="disp_${safeId}">${p.stock}</span>
+        </td>
+        <td class="py-3 text-right">
+          <div class="inline-flex items-center gap-2">
+            <input type="number" value="${p.stock}" min="0" id="${safeId}"
+              class="w-20 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-sm text-right focus:outline-none focus:ring-1 focus:ring-violet-500">
+            <button onclick="updateSingleStock('${p.name.replace(/'/g, "\\'")}')"
+              class="text-xs bg-violet-600 hover:bg-violet-500 text-white px-2.5 py-1 rounded transition-colors whitespace-nowrap">
+              Spara
+            </button>
+          </div>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+
+  } catch (err) {
+    c.innerHTML = `<p class="text-red-400 text-sm text-center py-8">Fel: ${err.message}</p>`;
+  }
+}
+
+async function updateSingleStock(name) {
+  const safeId = 'si_' + name.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const input  = document.getElementById(safeId);
+  const dispEl = document.getElementById('disp_' + safeId);
+  if (!input) return;
+  const stock = parseInt(input.value, 10);
+  if (isNaN(stock) || stock < 0) { showAlert('Ogiltigt lagervärde', 'error'); return; }
+
+  try {
+    const res = await api(`/api/stock/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stock }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    if (dispEl) dispEl.textContent = stock;
+    showAlert(`✓ Lager uppdaterat: ${name} → ${stock} st`, 'success');
+    await loadRecommendations();
+  } catch (err) {
+    showAlert(err.message, 'error');
   }
 }
 
