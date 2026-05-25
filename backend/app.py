@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import secrets
 from datetime import date, datetime, timedelta
@@ -45,15 +46,89 @@ def require_auth(f):
 
 
 def _days_param(default: int = 7) -> int:
-    """Read ?days= query param, clamp to [1, 90]."""
     try:
         return max(1, min(90, int(request.args.get("days", default))))
     except (ValueError, TypeError):
         return default
 
 
+# ─────────────────────────────────────────
+# Column detection helpers
+# ─────────────────────────────────────────
+
+def _norm(s: str) -> str:
+    """Lowercase, strip accents and non-alphanumeric chars."""
+    s = s.lower().strip()
+    for a, b in [('å','a'), ('ä','a'), ('ö','o'), ('é','e'), ('ü','u')]:
+        s = s.replace(a, b)
+    return ''.join(c for c in s if c.isalnum())
+
+
+# Maps our internal field keys → sets of normalised synonyms
+_FIELD_PATTERNS: dict[str, set[str]] = {
+    "vara": {
+        "vara", "produkt", "product", "item", "artikel", "name",
+        "namn", "benaming", "beteckning", "varunamn", "produktnamn",
+        "productname", "itemname", "goodsname",
+    },
+    "datum": {
+        "datum", "date", "dag", "tid", "time", "forsaljningsdatum",
+        "saledate", "transaktionsdatum", "salesdate", "salesdatum",
+        "orderdate", "orderdatum",
+    },
+    "antal": {
+        "antal", "quantity", "qty", "amount", "forsaljning", "sold",
+        "salda", "volym", "volume", "stycken", "saldaenheter",
+        "quantitysold", "numberofunits", "units", "enheter",
+    },
+    "lager": {
+        "lager", "stock", "saldo", "lagerantal", "inventory",
+        "balance", "behallning", "lagersaldo", "stocklevel",
+        "currentstock", "stockbalance", "stockqty",
+    },
+    "utgangsdatum": {
+        "utgangsdatum", "expiry", "expirydate", "bestbefore",
+        "bastfore", "utgar", "expiration", "expirationdate",
+        "bbdate", "bestbeforedate", "bbd", "sellby", "sellbydate",
+    },
+}
+
+
+def _suggest_columns(columns: list[str]) -> dict[str, str | None]:
+    """Return best-guess column name for each internal field key."""
+    normed = {c: _norm(c) for c in columns}
+    result: dict[str, str | None] = {}
+
+    for field, patterns in _FIELD_PATTERNS.items():
+        best: str | None = None
+        # 1) exact match after normalisation
+        for col, n in normed.items():
+            if n in patterns:
+                best = col
+                break
+        # 2) substring match  (pattern inside column name or vice-versa)
+        if best is None:
+            for col, n in normed.items():
+                if any(p in n or n in p for p in patterns):
+                    best = col
+                    break
+        result[field] = best
+
+    return result
+
+
+def _resolve_col(df_columns: list[str], col_map: dict, field: str,
+                 synonyms: set[str]) -> str | None:
+    """Return the actual DataFrame column to use for `field`.
+    Prefers explicit col_map, then falls back to synonym scanning."""
+    explicit = col_map.get(field)
+    if explicit and explicit in df_columns:
+        return explicit
+    # Legacy auto-detect (keeps backward compatibility)
+    return next((c for c in df_columns if c in synonyms), None)
+
+
 def _expiry_info(product_id: int, conn) -> dict:
-    """Returns expiry quantities expiring within 3 / 7 days from today."""
     today     = date.today()
     in3_iso   = (today + timedelta(days=3)).isoformat()
     in7_iso   = (today + timedelta(days=7)).isoformat()
@@ -69,6 +144,43 @@ def _expiry_info(product_id: int, conn) -> dict:
     critical = sum(r["quantity"] for r in rows if r["expiry_date"] < in3_iso)
     warning  = sum(r["quantity"] for r in rows if in3_iso <= r["expiry_date"] < in7_iso)
     return {"critical_qty": critical, "warning_qty": warning}
+
+
+# ─────────────────────────────────────────
+# File preview  (column detection)
+# ─────────────────────────────────────────
+
+@app.post("/api/preview")
+@require_auth
+def preview_file():
+    """Read the first rows of an uploaded file and suggest column mappings."""
+    if "file" not in request.files:
+        return jsonify({"error": "Ingen fil uppladdad"}), 400
+    f    = request.files["file"]
+    name = (f.filename or "").lower()
+
+    try:
+        if name.endswith(".csv"):
+            df = pd.read_csv(f, encoding="utf-8-sig", nrows=10, dtype=str)
+        elif name.endswith((".xlsx", ".xls")):
+            df = pd.read_excel(f, nrows=10, dtype=str)
+        else:
+            return jsonify({"error": "Stödjer bara CSV och Excel"}), 400
+
+        df.fillna("", inplace=True)
+        columns     = list(df.columns)
+        preview     = df.head(5).to_dict(orient="records")
+        suggestions = _suggest_columns(columns)
+
+        return jsonify({
+            "columns":     columns,
+            "preview":     preview,
+            "suggestions": suggestions,
+            "rows_shown":  len(preview),
+        })
+
+    except Exception as exc:
+        return jsonify({"error": f"Kunde inte läsa filen: {exc}"}), 500
 
 
 # ─────────────────────────────────────────
@@ -122,17 +234,25 @@ def upload():
         else:
             return jsonify({"error": "Stödjer bara CSV och Excel"}), 400
 
-        df.columns = df.columns.str.lower().str.strip()
+        df.columns = df.columns.str.strip()  # preserve original case for col_map lookup
+        df_lower   = {c: c.lower().strip() for c in df.columns}
+        df.rename(columns=lambda c: c.lower().strip(), inplace=True)
+
+        col_map = json.loads(request.form.get("column_map", "{}") or "{}")
+        # col_map keys use original casing from the browser; normalise to lower for matching
+        col_map = {k: v.lower().strip() for k, v in col_map.items() if v}
+
         VARA_NAMES  = {"vara", "produkt", "product", "item", "artikel"}
         DATUM_NAMES = {"datum", "date", "dag", "tid"}
         ANTAL_NAMES = {"antal", "quantity", "qty", "amount", "försäljning", "sold"}
 
-        col_vara  = next((c for c in df.columns if c in VARA_NAMES), None)
-        col_datum = next((c for c in df.columns if c in DATUM_NAMES), None)
-        col_antal = next((c for c in df.columns if c in ANTAL_NAMES), None)
-        missing   = [n for n, c in [("vara", col_vara), ("datum", col_datum), ("antal", col_antal)] if not c]
+        col_vara  = _resolve_col(list(df.columns), col_map, "vara",  VARA_NAMES)
+        col_datum = _resolve_col(list(df.columns), col_map, "datum", DATUM_NAMES)
+        col_antal = _resolve_col(list(df.columns), col_map, "antal", ANTAL_NAMES)
+
+        missing = [n for n, c in [("vara", col_vara), ("datum", col_datum), ("antal", col_antal)] if not c]
         if missing:
-            return jsonify({"error": f"Saknar kolumn(er): {', '.join(missing)}"}), 400
+            return jsonify({"error": f"Kunde inte hitta kolumn(er): {', '.join(missing)}. Kontrollera mappningen."}), 400
 
         upload_map: dict[str, list[tuple[str, int]]] = {}
         for _, row in df.iterrows():
@@ -193,11 +313,7 @@ def upload():
         msg = f"Laddade upp {inserted} försäljningsposter"
         if auto_deducted:
             msg += f". Lager automatiskt minskat: {', '.join(auto_deducted)}"
-        return jsonify({
-            "success":  True,
-            "message":  msg,
-            "products": list(upload_map.keys()),
-        })
+        return jsonify({"success": True, "message": msg, "products": list(upload_map.keys())})
 
     except Exception as exc:
         return jsonify({"error": f"Fel vid uppladdning: {exc}"}), 500
@@ -265,8 +381,8 @@ def forecast(product_name):
 @app.get("/api/recommendations")
 @require_auth
 def recommendations():
-    days = _days_param(7)
-    conn = get_connection()
+    days  = _days_param(7)
+    conn  = get_connection()
     prods = conn.execute("SELECT id, name FROM products ORDER BY name").fetchall()
     conn.close()
 
@@ -344,15 +460,21 @@ def upload_stock():
         else:
             return jsonify({"error": "Stödjer bara CSV och Excel"}), 400
 
-        df.columns = df.columns.str.lower().str.strip()
+        df.columns = df.columns.str.strip()
+        df.rename(columns=lambda c: c.lower().strip(), inplace=True)
+
+        col_map = json.loads(request.form.get("column_map", "{}") or "{}")
+        col_map = {k: v.lower().strip() for k, v in col_map.items() if v}
+
         VARA_NAMES  = {"vara", "produkt", "product", "artikel", "item"}
         LAGER_NAMES = {"lager", "stock", "saldo", "lagerantal", "antal", "quantity"}
 
-        col_vara  = next((c for c in df.columns if c in VARA_NAMES), None)
-        col_lager = next((c for c in df.columns if c in LAGER_NAMES), None)
-        missing   = [n for n, c in [("vara", col_vara), ("lager", col_lager)] if not c]
+        col_vara  = _resolve_col(list(df.columns), col_map, "vara",  VARA_NAMES)
+        col_lager = _resolve_col(list(df.columns), col_map, "lager", LAGER_NAMES)
+
+        missing = [n for n, c in [("vara", col_vara), ("lager", col_lager)] if not c]
         if missing:
-            return jsonify({"error": f"Saknar kolumn(er): {', '.join(missing)}"}), 400
+            return jsonify({"error": f"Kunde inte hitta kolumn(er): {', '.join(missing)}"}), 400
 
         conn             = get_connection()
         updated, skipped = 0, 0
@@ -431,7 +553,12 @@ def upload_expiry():
         else:
             return jsonify({"error": "Stödjer bara CSV och Excel"}), 400
 
-        df.columns = df.columns.str.lower().str.strip()
+        df.columns = df.columns.str.strip()
+        df.rename(columns=lambda c: c.lower().strip(), inplace=True)
+
+        col_map = json.loads(request.form.get("column_map", "{}") or "{}")
+        col_map = {k: v.lower().strip() for k, v in col_map.items() if v}
+
         VARA_NAMES = {"vara", "produkt", "product", "artikel", "item"}
         DATE_NAMES = {
             "utgångsdatum", "utgangsdatum", "expiry", "expiry_date",
@@ -439,12 +566,13 @@ def upload_expiry():
         }
         ANTAL_NAMES = {"antal", "quantity", "qty", "amount"}
 
-        col_vara  = next((c for c in df.columns if c in VARA_NAMES), None)
-        col_date  = next((c for c in df.columns if c in DATE_NAMES), None)
-        col_antal = next((c for c in df.columns if c in ANTAL_NAMES), None)
-        missing   = [n for n, c in [("vara", col_vara), ("utgångsdatum", col_date), ("antal", col_antal)] if not c]
+        col_vara  = _resolve_col(list(df.columns), col_map, "vara",         VARA_NAMES)
+        col_date  = _resolve_col(list(df.columns), col_map, "utgangsdatum", DATE_NAMES)
+        col_antal = _resolve_col(list(df.columns), col_map, "antal",        ANTAL_NAMES)
+
+        missing = [n for n, c in [("vara", col_vara), ("utgångsdatum", col_date), ("antal", col_antal)] if not c]
         if missing:
-            return jsonify({"error": f"Saknar kolumn(er): {', '.join(missing)}"}), 400
+            return jsonify({"error": f"Kunde inte hitta kolumn(er): {', '.join(missing)}"}), 400
 
         product_entries: dict[str, list[tuple[str, int]]] = {}
         for _, row in df.iterrows():
@@ -533,7 +661,7 @@ def expiry_template():
     ws = wb.active
     ws.title = "Utgångsdatum"
 
-    headers = ["vara", "utgångsdatum", "antal"]
+    headers    = ["vara", "utgångsdatum", "antal"]
     col_widths = [28, 16, 10]
     for ci, (h, w) in enumerate(zip(headers, col_widths), 1):
         cell           = ws.cell(row=1, column=ci, value=h)
@@ -574,13 +702,13 @@ def export_recommendations():
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font, PatternFill
 
-    days = _days_param(7)
-    conn = get_connection()
+    days  = _days_param(7)
+    conn  = get_connection()
     prods = conn.execute("SELECT id, name FROM products ORDER BY name").fetchall()
     conn.close()
 
-    STATUS_SV   = {"urgent": "Brädskande", "soon": "Snart", "plan": "Planera", "unknown": "Lager okänt"}
-    STATUS_FILL = {"Brädskande": "FEE2E2", "Snart": "FEF3C7", "Planera": "DCFCE7", "Lager okänt": "F1F5F9"}
+    STATUS_SV   = {"urgent": "Bradskande", "soon": "Snart", "plan": "Planera", "unknown": "Lager okant"}
+    STATUS_FILL = {"Bradskande": "FEE2E2", "Snart": "FEF3C7", "Planera": "DCFCE7", "Lager okant": "F1F5F9"}
 
     rows = []
     for prod in prods:
@@ -591,22 +719,22 @@ def export_recommendations():
         exp   = _expiry_info(prod["id"], conn2)
         conn2.close()
         rows.append({
-            "Produkt":              prod["name"],
-            "Nuv. lager":           data["current_stock"] if data["stock_initialized"] else "Ej angivet",
-            f"Prognos {days}d":     data["total_forecast"],
-            "Beställ antal":        data["order_quantity"],
-            "Status":               STATUS_SV.get(data["status"], data["status"]),
-            "Lagerdagar kvar":      data["days_stock"] if data["days_stock"] is not None else "-",
-            "Utgår inom 3 dgr":    exp["critical_qty"] if exp["critical_qty"] > 0 else "",
-            "Utgår inom 7 dgr":    exp["warning_qty"]  if exp["warning_qty"]  > 0 else "",
+            "Produkt":           prod["name"],
+            "Nuv. lager":        data["current_stock"] if data["stock_initialized"] else "Ej angivet",
+            f"Prognos {days}d":  data["total_forecast"],
+            "Bestall antal":     data["order_quantity"],
+            "Status":            STATUS_SV.get(data["status"], data["status"]),
+            "Lagerdagar kvar":   data["days_stock"] if data["days_stock"] is not None else "-",
+            "Utgar inom 3 dgr":  exp["critical_qty"] if exp["critical_qty"] > 0 else "",
+            "Utgar inom 7 dgr":  exp["warning_qty"]  if exp["warning_qty"]  > 0 else "",
         })
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "Beställningslista"
+    ws.title = "Bestallningslista"
 
-    headers    = ["Produkt", "Nuv. lager", f"Prognos {days}d", "Beställ antal",
-                  "Status", "Lagerdagar kvar", "Utgår inom 3 dgr", "Utgår inom 7 dgr"]
+    headers    = ["Produkt", "Nuv. lager", f"Prognos {days}d", "Bestall antal",
+                  "Status", "Lagerdagar kvar", "Utgar inom 3 dgr", "Utgar inom 7 dgr"]
     col_widths = [26, 14, 14, 14, 14, 16, 18, 18]
 
     for ci, (h, w) in enumerate(zip(headers, col_widths), 1):
@@ -616,18 +744,13 @@ def export_recommendations():
         cell.alignment = Alignment(horizontal="center")
         ws.column_dimensions[cell.column_letter].width = w
 
-    EXPIRY_CRIT_FILL = "FEE2E2"
-    EXPIRY_WARN_FILL = "FEF3C7"
-
     for ri, row in enumerate(rows, 2):
-        vals = [row[h] for h in headers]
-        base_fill = STATUS_FILL.get(row["Status"])
-
-        # Override row color if expiry is critical
-        if row.get("Utgår inom 3 dgr"):
-            base_fill = EXPIRY_CRIT_FILL
-        elif row.get("Utgår inom 7 dgr"):
-            base_fill = EXPIRY_WARN_FILL
+        vals       = [row[h] for h in headers]
+        base_fill  = STATUS_FILL.get(row["Status"])
+        if row.get("Utgar inom 3 dgr"):
+            base_fill = "FEE2E2"
+        elif row.get("Utgar inom 7 dgr"):
+            base_fill = "FEF3C7"
 
         for ci, val in enumerate(vals, 1):
             cell           = ws.cell(row=ri, column=ci, value=val)
