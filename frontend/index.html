@@ -206,6 +206,7 @@
       <button class="nav-btn"        id="nav-menu"      onclick="showSection('menu')">Dagsmeny</button>
       <button class="nav-btn"        id="nav-waste"     onclick="showSection('waste')">Svinn</button>
       <button class="nav-btn"        id="nav-stock"     onclick="showSection('stock')">Förråd</button>
+      <button class="nav-btn"        id="nav-settings"  onclick="showSection('settings')">Inställningar</button>
     </div>
   </nav>
 
@@ -544,6 +545,106 @@
     </div>
   </div>
 
+  <!-- ══════ INSTÄLLNINGAR ══════ -->
+  <div id="sec-settings" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
+    <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Inställningar &amp; Integrationer</h2>
+
+    <!-- Zettle integration -->
+    <div class="bg-slate-800 border border-slate-700">
+      <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-semibold text-white">Zettle / iZettle Integration</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Synka försäljning automatiskt från ditt kassasystem</p>
+        </div>
+        <span id="zettleStatusBadge" class="hidden text-xs px-2.5 py-1 border font-medium"></span>
+      </div>
+      <div class="p-6 space-y-6">
+
+        <!-- Status row (visible when configured) -->
+        <div id="zettleStatusRow" class="hidden bg-slate-700/30 border border-slate-700 p-4">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Senaste synk</p>
+              <p class="text-sm font-semibold text-white mt-1" id="zLastSync">–</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Kopplade produkter</p>
+              <p class="text-sm font-semibold text-emerald-400 mt-1" id="zMapped">–</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Ej kopplade</p>
+              <p class="text-sm font-semibold text-amber-400 mt-1" id="zUnmapped">–</p>
+            </div>
+            <div class="flex items-end">
+              <button onclick="manualZettleSync()" id="zSyncBtn"
+                class="w-full text-sm bg-rose-800 hover:bg-rose-700 text-white px-4 py-2 font-medium transition-colors">
+                Synka nu
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Credentials form -->
+        <div>
+          <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">API-uppgifter</h4>
+          <div id="zNoRequests" class="hidden bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs px-4 py-3 mb-4">
+            Biblioteket <code>requests</code> är inte installerat. Kör:
+            <code class="bg-slate-900/60 px-1.5 py-0.5 ml-1">pip install requests</code>
+            och starta om servern.
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Client ID</label>
+              <input type="text" id="zClientId" placeholder="Från developer.zettle.com"
+                class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700 font-mono">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">API-nyckel</label>
+              <input type="password" id="zApiKey" placeholder="••••••••••••"
+                class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700 font-mono">
+            </div>
+          </div>
+          <div class="flex gap-3 mt-4">
+            <button onclick="saveZettleCredentials()"
+              class="text-sm bg-rose-800 hover:bg-rose-700 text-white px-5 py-2 font-medium transition-colors">
+              Spara uppgifter
+            </button>
+            <button onclick="deleteZettleCredentials()" id="zDeleteBtn"
+              class="hidden text-sm text-red-400 hover:text-red-300 px-4 py-2 border border-red-800/50 hover:border-red-700 transition-colors">
+              Ta bort koppling
+            </button>
+          </div>
+          <p class="text-xs text-slate-600 mt-3">API-nyckeln krypteras och lagras lokalt i databasen. Den lämnar aldrig din server.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Product mapping -->
+    <div class="bg-slate-800 border border-slate-700">
+      <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-semibold text-white">Produktmatchning</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Koppla Zettle-produkter till ingredienser i systemet</p>
+        </div>
+        <button onclick="loadProductMapping()" class="text-xs text-slate-500 hover:text-white px-2 py-1 hover:bg-slate-700">&#8635; Uppdatera</button>
+      </div>
+      <div id="zMappingContainer" class="p-6">
+        <p class="text-slate-600 text-sm text-center py-4">Konfigurera API-uppgifter och synka för att se Zettle-produkter.</p>
+      </div>
+    </div>
+
+    <!-- Sync log -->
+    <div class="bg-slate-800 border border-slate-700">
+      <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-white">Synklogg</h3>
+        <button onclick="loadSyncLog()" class="text-xs text-slate-500 hover:text-white px-2 py-1 hover:bg-slate-700">&#8635; Uppdatera</button>
+      </div>
+      <div id="zSyncLogContainer" class="p-6">
+        <p class="text-slate-600 text-sm text-center py-4">Inga synkroniseringar genomförda ännu.</p>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /#dashboard -->
 
 <script>
@@ -573,7 +674,7 @@ const UPLOAD_TYPES = {
 };
 let _mappingState = {file:null, type:null};
 
-const SECTIONS = ['dash','import','forecast','recs','suppliers','recipes','menu','waste','stock'];
+const SECTIONS = ['dash','import','forecast','recs','suppliers','recipes','menu','waste','stock','settings'];
 
 // ============================================================
 // Init
@@ -611,6 +712,7 @@ function showSection(name) {
   if (name==='menu')      loadMenuSection();
   if (name==='waste')     loadWasteReport();
   if (name==='stock')     { loadStockTable(); loadExpiryTable(); }
+  if (name==='settings')  loadZettleStatus();
 }
 
 // ============================================================
@@ -1432,6 +1534,191 @@ function statusDotColor(s){return{urgent:'bg-red-500',soon:'bg-yellow-400',plan:
 function statusColor(s){return{urgent:'text-red-400',soon:'text-yellow-400',plan:'text-emerald-400',unknown:'text-slate-400'}[s]||'text-slate-400';}
 function statusLabel(s){return{urgent:'Bradskande',soon:'Snart',plan:'Planera',unknown:'Okant'}[s]||s;}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ============================================================
+// Zettle / Inställningar
+// ============================================================
+async function loadZettleStatus() {
+  try {
+    const res = await api('/api/settings/zettle');
+    const d = await res.json();
+    if (!res.ok) return;
+
+    const badge = document.getElementById('zettleStatusBadge');
+    if (d.configured) {
+      badge.textContent = 'Ansluten';
+      badge.className = 'text-xs px-2.5 py-1 border font-medium bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+      document.getElementById('zettleStatusRow').classList.remove('hidden');
+      document.getElementById('zLastSync').textContent = d.last_sync
+        ? new Date(d.last_sync).toLocaleString('sv-SE') : 'Aldrig';
+      document.getElementById('zMapped').textContent   = d.mapped_count;
+      document.getElementById('zUnmapped').textContent = d.unmapped_count;
+      document.getElementById('zDeleteBtn').classList.remove('hidden');
+      if (d.client_id_hint)
+        document.getElementById('zClientId').placeholder = d.client_id_hint + '...';
+    } else {
+      badge.textContent = 'Ej konfigurerad';
+      badge.className = 'text-xs px-2.5 py-1 border font-medium bg-slate-500/15 text-slate-400 border-slate-500/30';
+      document.getElementById('zettleStatusRow').classList.add('hidden');
+      document.getElementById('zDeleteBtn').classList.add('hidden');
+    }
+    badge.classList.remove('hidden');
+
+    if (!d.has_requests) document.getElementById('zNoRequests').classList.remove('hidden');
+    else document.getElementById('zNoRequests').classList.add('hidden');
+
+    if (d.configured) {
+      await Promise.all([loadProductMapping(), loadSyncLog()]);
+    }
+  } catch(err) { console.error(err); }
+}
+
+async function saveZettleCredentials() {
+  const clientId = document.getElementById('zClientId').value.trim();
+  const apiKey   = document.getElementById('zApiKey').value.trim();
+  if (!clientId || !apiKey) { showAlert('Ange både Client ID och API-nyckel', 'error'); return; }
+  try {
+    const res = await api('/api/settings/zettle', {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({client_id: clientId, api_key: apiKey})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    document.getElementById('zApiKey').value = '';
+    showAlert('Zettle-uppgifter sparade', 'success');
+    await loadZettleStatus();
+  } catch(err) { showAlert(err.message, 'error'); }
+}
+
+async function deleteZettleCredentials() {
+  if (!confirm('Ta bort Zettle-kopplingen?')) return;
+  try {
+    const res = await api('/api/settings/zettle', {method: 'DELETE'});
+    if (!res.ok) throw new Error((await res.json()).error);
+    document.getElementById('zClientId').value = '';
+    document.getElementById('zApiKey').value   = '';
+    showAlert('Zettle-koppling borttagen', 'success');
+    await loadZettleStatus();
+  } catch(err) { showAlert(err.message, 'error'); }
+}
+
+async function manualZettleSync() {
+  const btn = document.getElementById('zSyncBtn');
+  const orig = btn.textContent;
+  btn.textContent = 'Synkar...'; btn.disabled = true;
+  try {
+    const res  = await api('/api/zettle/sync', {method: 'POST'});
+    const data = await res.json();
+    if (data.status === 'busy') { showAlert('Synkronisering pagar redan', 'error'); return; }
+    if (!res.ok) throw new Error(data.error || data.message);
+    showAlert(`Zettle synkad: ${data.transactions||0} transaktioner, ${data.matched||0} matchade`, 'success');
+    await loadZettleStatus();
+  } catch(err) { showAlert('Synkfel: ' + err.message, 'error'); }
+  finally { btn.textContent = orig; btn.disabled = false; }
+}
+
+async function loadProductMapping() {
+  const c = document.getElementById('zMappingContainer');
+  try {
+    const res  = await api('/api/zettle/products');
+    const data = await res.json();
+    if (!res.ok) {
+      c.innerHTML = `<p class="text-red-400 text-sm text-center py-4">Fel: ${escHtml(data.error||'')}</p>`;
+      return;
+    }
+    const mappings = data.mappings;
+    if (!mappings.length) {
+      c.innerHTML = '<p class="text-slate-600 text-sm text-center py-4">Inga Zettle-produkter. Synka for att hamta produktlista.</p>';
+      return;
+    }
+    const products = data.products;
+    c.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-sm">
+      <thead><tr class="text-slate-500 text-xs uppercase tracking-wider text-left border-b border-slate-700">
+        <th class="pb-3 pr-4 font-semibold">Zettle-produkt</th>
+        <th class="pb-3 pr-4 font-semibold">Kopplad ingrediens</th>
+        <th class="pb-3 font-semibold text-right">Atgard</th>
+      </tr></thead><tbody id="zMappingTbody" class="divide-y divide-slate-700/40"></tbody></table></div>`;
+    const tbody = document.getElementById('zMappingTbody');
+    mappings.forEach((m, i) => {
+      const tr = document.createElement('tr');
+      tr.className = i % 2 ? 'bg-slate-700/10' : '';
+      const selId = `zm_${m.id}`;
+      const opts  = products.map(p =>
+        `<option value="${p.id}"${p.id === m.product_id ? ' selected' : ''}>${escHtml(p.name)}</option>`
+      ).join('');
+      tr.innerHTML = `
+        <td class="py-3 pr-4 font-medium text-white">${escHtml(m.zettle_name)}</td>
+        <td class="py-3 pr-4">
+          <select id="${selId}" class="bg-slate-700 border border-slate-600 px-2 py-1 text-white text-xs focus:outline-none focus:ring-1 focus:ring-rose-700 w-full max-w-xs">
+            <option value="">-- Ingen koppling --</option>${opts}
+          </select>
+        </td>
+        <td class="py-3 text-right">
+          <button onclick="saveProductMapping(${m.id},'${selId}')"
+            class="text-xs bg-slate-600 hover:bg-slate-500 text-white px-3 py-1.5 border border-slate-500 transition-colors">
+            Spara
+          </button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  } catch(err) {
+    c.innerHTML = `<p class="text-red-400 text-sm text-center py-4">Fel: ${escHtml(err.message)}</p>`;
+  }
+}
+
+async function saveProductMapping(mappingId, selId) {
+  const sel = document.getElementById(selId);
+  const productId = sel.value ? parseInt(sel.value) : null;
+  try {
+    const res = await api('/api/zettle/mapping', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({mapping_id: mappingId, product_id: productId})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showAlert('Koppling sparad', 'success');
+    await loadZettleStatus();
+  } catch(err) { showAlert(err.message, 'error'); }
+}
+
+async function loadSyncLog() {
+  const c = document.getElementById('zSyncLogContainer');
+  try {
+    const res  = await api('/api/zettle/log');
+    const data = await res.json();
+    if (!res.ok || !data.length) {
+      c.innerHTML = '<p class="text-slate-600 text-sm text-center py-4">Inga synkroniseringar genomforda annu.</p>';
+      return;
+    }
+    c.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-xs">
+      <thead><tr class="text-slate-500 text-xs uppercase tracking-wider text-left border-b border-slate-700">
+        <th class="pb-3 pr-4 font-semibold">Tidpunkt</th>
+        <th class="pb-3 pr-3 font-semibold">Status</th>
+        <th class="pb-3 pr-3 font-semibold text-right">Transaktioner</th>
+        <th class="pb-3 pr-3 font-semibold text-right">Matchade</th>
+        <th class="pb-3 pr-3 font-semibold text-right">Ej matchade</th>
+        <th class="pb-3 font-semibold">Meddelande</th>
+      </tr></thead><tbody class="divide-y divide-slate-700/40">
+        ${data.map((row, i) => {
+          const isOk = row.status === 'ok';
+          return `<tr class="${i%2?'bg-slate-700/10':''}">
+            <td class="py-2 pr-4 text-slate-400 font-mono text-xs whitespace-nowrap">${escHtml((row.timestamp||'–').slice(0,19).replace('T',' '))}</td>
+            <td class="py-2 pr-3">
+              <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 border ${isOk
+                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                : 'bg-red-500/15 text-red-400 border-red-500/30'}">${escHtml(row.status)}</span>
+            </td>
+            <td class="py-2 pr-3 text-right text-slate-300">${row.transactions}</td>
+            <td class="py-2 pr-3 text-right text-emerald-400">${row.matched}</td>
+            <td class="py-2 pr-3 text-right ${row.unmatched>0?'text-amber-400':'text-slate-500'}">${row.unmatched}</td>
+            <td class="py-2 text-slate-500 text-xs truncate max-w-xs">${escHtml(row.message||'')}</td>
+          </tr>`;
+        }).join('')}
+      </tbody></table></div>`;
+  } catch(err) {
+    c.innerHTML = `<p class="text-red-400 text-sm text-center py-4">Fel: ${escHtml(err.message)}</p>`;
+  }
+}
 </script>
 </body>
 </html>

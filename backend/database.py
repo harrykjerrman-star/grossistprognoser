@@ -107,6 +107,32 @@ def init_db() -> None:
 
         CREATE INDEX IF NOT EXISTS idx_dish_sales_recipe_date
             ON dish_sales(recipe_id, date);
+
+        CREATE TABLE IF NOT EXISTS settings (
+            key   TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS zettle_product_mapping (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            zettle_uuid  TEXT    UNIQUE,
+            zettle_name  TEXT    NOT NULL,
+            product_id   INTEGER REFERENCES products(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_zettle_name
+            ON zettle_product_mapping(zettle_name);
+
+        CREATE TABLE IF NOT EXISTS sync_log (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp    TEXT    NOT NULL,
+            source       TEXT    NOT NULL DEFAULT 'zettle',
+            status       TEXT    NOT NULL,
+            transactions INTEGER NOT NULL DEFAULT 0,
+            matched      INTEGER NOT NULL DEFAULT 0,
+            unmatched    INTEGER NOT NULL DEFAULT 0,
+            message      TEXT
+        );
     """)
 
     # Safe migrations for older databases
