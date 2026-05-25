@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Grossistprognoser</title>
+  <title>Restaurangprognos</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
              letter-spacing:.05em;color:#64748b;transition:color .15s,border-color .15s;
              border-bottom:2px solid transparent;white-space:nowrap;}
     .nav-btn:hover{color:#cbd5e1;}
-    .nav-btn.active{color:#fff;border-bottom-color:#3b82f6;}
+    .nav-btn.active{color:#fff;border-bottom-color:#be123c;}
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
@@ -26,24 +26,24 @@
 <div id="loginScreen" class="fixed inset-0 flex items-center justify-center bg-slate-900 z-50">
   <div class="bg-slate-800 shadow-2xl p-8 w-full max-w-sm mx-4 border border-slate-700">
     <div class="text-center mb-8">
-      <div class="inline-flex items-center justify-center w-12 h-12 bg-blue-700 text-white font-bold text-lg mb-4 select-none">GP</div>
-      <h1 class="text-xl font-bold text-white tracking-tight">Grossistprognoser</h1>
-      <p class="text-slate-400 mt-1 text-xs uppercase tracking-widest">Supply Chain Management</p>
+      <div class="inline-flex items-center justify-center w-12 h-12 bg-rose-800 text-white font-bold text-lg mb-4 select-none">R</div>
+      <h1 class="text-xl font-bold text-white tracking-tight" id="loginTitle">Restaurangprognos</h1>
+      <p class="text-slate-400 mt-1 text-xs uppercase tracking-widest">Ingrediens &amp; Recepthantering</p>
     </div>
     <div id="loginError" class="hidden bg-red-500/15 border border-red-500/30 text-red-400 p-3 mb-4 text-sm"></div>
     <form id="loginForm" class="space-y-4">
       <div>
         <label class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">E-postadress</label>
         <input type="email" id="loginEmail" value="demo@grossist.se"
-          class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
+          class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-700">
       </div>
       <div>
         <label class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">Lösenord</label>
         <input type="password" id="loginPassword" value="demo123"
-          class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
+          class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-700">
       </div>
       <button type="submit" id="loginBtn"
-        class="w-full bg-blue-700 hover:bg-blue-600 text-white font-semibold py-2.5 px-4 text-sm transition-colors uppercase tracking-wide">
+        class="w-full bg-rose-800 hover:bg-rose-700 text-white font-semibold py-2.5 px-4 text-sm transition-colors uppercase tracking-wide">
         Logga in
       </button>
     </form>
@@ -62,8 +62,8 @@
       <button onclick="closeMappingModal()" class="text-slate-500 hover:text-white text-xl ml-4">&times;</button>
     </div>
     <div class="overflow-y-auto flex-1 p-6 space-y-5">
-      <div class="bg-blue-700/10 border border-blue-700/30 px-4 py-3 text-xs text-blue-300">
-        Appen har automatiskt gissat kolumnerna. Kontrollera och justera vid behov.
+      <div class="bg-rose-900/20 border border-rose-800/30 px-4 py-3 text-xs text-rose-300">
+        Appen har automatiskt identifierat kolumnerna. Kontrollera och justera vid behov.
       </div>
       <div><h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Koppla kolumner</h3>
         <div id="mappingFields" class="space-y-2.5"></div></div>
@@ -72,7 +72,7 @@
     </div>
     <div class="px-6 py-4 border-t border-slate-700 flex gap-3 justify-end flex-shrink-0 bg-slate-800">
       <button onclick="closeMappingModal()" class="text-sm text-slate-400 hover:text-white px-4 py-2 border border-slate-600 transition-colors">Avbryt</button>
-      <button id="mappingConfirmBtn" onclick="confirmMappingUpload()" class="text-sm bg-blue-700 hover:bg-blue-600 text-white px-6 py-2 font-medium transition-colors">Ladda upp</button>
+      <button id="mappingConfirmBtn" onclick="confirmMappingUpload()" class="text-sm bg-rose-800 hover:bg-rose-700 text-white px-6 py-2 font-medium transition-colors">Ladda upp</button>
     </div>
   </div>
 </div>
@@ -89,33 +89,33 @@
       <div class="grid grid-cols-2 gap-4">
         <div class="col-span-2">
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Namn <span class="text-red-400">*</span></label>
-          <input type="text" id="supplierName" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-600">
+          <input type="text" id="supplierName" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Kontaktperson</label>
-          <input type="text" id="supplierContact" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-600">
+          <input type="text" id="supplierContact" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">E-post</label>
-          <input type="email" id="supplierEmail" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-600">
+          <input type="email" id="supplierEmail" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Telefon</label>
-          <input type="text" id="supplierPhone" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-600">
+          <input type="text" id="supplierPhone" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Ledtid (dagar)</label>
-          <input type="number" id="supplierLead" min="1" value="3" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-600">
+          <input type="number" id="supplierLead" min="1" value="3" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Min. orderkvantitet</label>
-          <input type="number" id="supplierMinQty" min="1" value="1" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-600">
+          <input type="number" id="supplierMinQty" min="1" value="1" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
         </div>
       </div>
     </div>
     <div class="px-6 py-4 border-t border-slate-700 flex gap-3 justify-end bg-slate-800">
       <button onclick="closeSupplierModal()" class="text-sm text-slate-400 hover:text-white px-4 py-2 border border-slate-600 transition-colors">Avbryt</button>
-      <button onclick="saveSupplier()" class="text-sm bg-blue-700 hover:bg-blue-600 text-white px-5 py-2 font-medium transition-colors">Spara</button>
+      <button onclick="saveSupplier()" class="text-sm bg-rose-800 hover:bg-rose-700 text-white px-5 py-2 font-medium transition-colors">Spara</button>
     </div>
   </div>
 </div>
@@ -124,40 +124,69 @@
 <div id="emailModal" class="hidden fixed inset-0 bg-black/75 z-40 flex items-center justify-center p-4">
   <div class="bg-slate-800 border border-slate-600 w-full max-w-lg shadow-2xl">
     <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-      <h2 class="text-sm font-semibold text-white uppercase tracking-wider">Beställningsmail</h2>
+      <h2 class="text-sm font-semibold text-white uppercase tracking-wider">Inköpsmail</h2>
       <button onclick="document.getElementById('emailModal').classList.add('hidden')" class="text-slate-500 hover:text-white text-xl">&times;</button>
     </div>
     <div class="p-6 space-y-3">
-      <div>
-        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Till</label>
-        <p class="text-sm text-slate-300 font-mono" id="emailTo"></p>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Ämne</label>
-        <p class="text-sm text-slate-300" id="emailSubject"></p>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Meddelande</label>
-        <textarea id="emailBody" rows="10" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-xs font-mono focus:outline-none resize-none"></textarea>
-      </div>
+      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Till</label>
+        <p class="text-sm text-slate-300 font-mono" id="emailTo"></p></div>
+      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Ämne</label>
+        <p class="text-sm text-slate-300" id="emailSubject"></p></div>
+      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Meddelande</label>
+        <textarea id="emailBody" rows="10" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-xs font-mono focus:outline-none resize-none"></textarea></div>
     </div>
     <div class="px-6 py-4 border-t border-slate-700 flex gap-3 justify-end bg-slate-800">
       <button onclick="copyEmail()" class="text-sm text-slate-300 hover:text-white px-4 py-2 border border-slate-600 transition-colors">Kopiera text</button>
-      <button onclick="openMailto()" class="text-sm bg-blue-700 hover:bg-blue-600 text-white px-5 py-2 font-medium transition-colors">Öppna i e-postklient</button>
+      <button onclick="openMailto()" class="text-sm bg-rose-800 hover:bg-rose-700 text-white px-5 py-2 font-medium transition-colors">Öppna i e-postklient</button>
     </div>
   </div>
 </div>
 
-<!-- ===================== DASHBOARD ===================== -->
+<!-- ===================== RECIPE MODAL ===================== -->
+<div id="recipeModal" class="hidden fixed inset-0 bg-black/75 z-40 flex items-center justify-center p-4">
+  <div class="bg-slate-800 border border-slate-600 w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+    <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between flex-shrink-0">
+      <h2 class="text-sm font-semibold text-white uppercase tracking-wider" id="recipeModalTitle">Nytt recept</h2>
+      <button onclick="closeRecipeModal()" class="text-slate-500 hover:text-white text-xl">&times;</button>
+    </div>
+    <div class="overflow-y-auto flex-1 p-6 space-y-4">
+      <input type="hidden" id="recipeId">
+      <div class="grid grid-cols-2 gap-4">
+        <div class="col-span-2 md:col-span-1">
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Receptnamn <span class="text-red-400">*</span></label>
+          <input type="text" id="recipeName" placeholder="t.ex. Pasta Carbonara" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Portioner per batch</label>
+          <input type="number" id="recipePortions" min="1" value="1" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+        </div>
+      </div>
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Ingredienser per portion</h3>
+          <button onclick="addIngredientRow()" class="text-xs text-rose-400 hover:text-rose-300 px-2 py-1 border border-rose-800/50 hover:border-rose-700 transition-colors">+ Lägg till ingrediens</button>
+        </div>
+        <div id="recipeIngredients" class="space-y-2"></div>
+        <p id="recipeIngEmpty" class="text-slate-600 text-xs py-2">Inga ingredienser tillagda ännu.</p>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-slate-700 flex gap-3 justify-end flex-shrink-0 bg-slate-800">
+      <button onclick="closeRecipeModal()" class="text-sm text-slate-400 hover:text-white px-4 py-2 border border-slate-600 transition-colors">Avbryt</button>
+      <button onclick="saveRecipe()" class="text-sm bg-rose-800 hover:bg-rose-700 text-white px-6 py-2 font-medium transition-colors">Spara recept</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MAIN APP ===================== -->
 <div id="dashboard" class="hidden min-h-screen flex flex-col">
 
   <!-- Header -->
   <header class="bg-slate-800 border-b border-slate-700 px-6 py-3 flex-shrink-0">
     <div class="max-w-7xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-7 h-7 bg-blue-700 flex items-center justify-center text-white font-bold text-xs select-none flex-shrink-0">GP</div>
+        <div class="w-7 h-7 bg-rose-800 flex items-center justify-center text-white font-bold text-xs select-none flex-shrink-0">R</div>
         <div>
-          <span class="font-semibold text-white text-sm leading-none">Grossistprognoser</span>
+          <button onclick="editRestaurantName()" class="font-semibold text-white text-sm leading-none hover:text-rose-300 transition-colors" id="restaurantName">Min Restaurang</button>
           <p class="text-xs text-slate-500 mt-0.5 leading-none" id="headerEmail"></p>
         </div>
       </div>
@@ -171,10 +200,12 @@
       <button class="nav-btn active" id="nav-dash"      onclick="showSection('dash')">Dashboard</button>
       <button class="nav-btn"        id="nav-import"    onclick="showSection('import')">Import</button>
       <button class="nav-btn"        id="nav-forecast"  onclick="showSection('forecast')">Prognos</button>
-      <button class="nav-btn"        id="nav-recs"      onclick="showSection('recs')">Rekommendationer</button>
+      <button class="nav-btn"        id="nav-recs"      onclick="showSection('recs')">Inköpsrek.</button>
       <button class="nav-btn"        id="nav-suppliers" onclick="showSection('suppliers')">Leverantörer</button>
+      <button class="nav-btn"        id="nav-recipes"   onclick="showSection('recipes')">Recept</button>
+      <button class="nav-btn"        id="nav-menu"      onclick="showSection('menu')">Dagsmeny</button>
       <button class="nav-btn"        id="nav-waste"     onclick="showSection('waste')">Svinn</button>
-      <button class="nav-btn"        id="nav-stock"     onclick="showSection('stock')">Lager</button>
+      <button class="nav-btn"        id="nav-stock"     onclick="showSection('stock')">Förråd</button>
     </div>
   </nav>
 
@@ -183,153 +214,153 @@
     <div id="alert" class="hidden px-4 py-3 text-sm flex items-center gap-2 border"></div>
   </div>
 
-  <!-- ══════ SECTION: DASHBOARD ══════ -->
+  <!-- ══════ DASHBOARD ══════ -->
   <div id="sec-dash" class="section max-w-7xl mx-auto w-full px-6 py-8 flex-1 space-y-6">
     <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Översikt</h2>
-
-    <!-- KPI cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="bg-slate-800 border border-slate-700 p-5">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Totalt produkter</p>
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Totalt ingredienser</p>
         <p class="text-3xl font-bold text-white mt-2" id="kpiTotal">–</p>
         <p class="text-xs text-slate-600 mt-1">i systemet</p>
       </div>
       <div class="bg-slate-800 border border-red-900/50 p-5">
         <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Brådskande</p>
         <p class="text-3xl font-bold text-red-400 mt-2" id="kpiUrgent">–</p>
-        <p class="text-xs text-slate-600 mt-1">produkter att beställa</p>
+        <p class="text-xs text-slate-600 mt-1">ingredienser att köpa in</p>
       </div>
       <div class="bg-slate-800 border border-yellow-900/50 p-5">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Utgår snart</p>
-        <p class="text-3xl font-bold text-yellow-400 mt-2" id="kpiExpiry">–</p>
-        <p class="text-xs text-slate-600 mt-1">produkter inom 7 dagar</p>
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Recept — lågt förråd</p>
+        <p class="text-3xl font-bold text-amber-400 mt-2" id="kpiLowPortions">–</p>
+        <p class="text-xs text-slate-600 mt-1">rätter &lt; 10 portioner</p>
       </div>
       <div class="bg-slate-800 border border-slate-700 p-5">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Försäljning 7 dagar</p>
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Förbrukning 7 dagar</p>
         <p class="text-3xl font-bold text-emerald-400 mt-2" id="kpiSales">–</p>
         <p class="text-xs text-slate-600 mt-1">enheter totalt</p>
       </div>
     </div>
-
-    <!-- 30-day sales chart -->
     <div class="bg-slate-800 border border-slate-700 p-6">
-      <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Total försäljning — senaste 30 dagarna</h3>
-      <div id="dashChartPlaceholder" class="flex items-center justify-center h-48 text-slate-600 text-sm">
-        Laddar data...
-      </div>
-      <div id="dashChartWrap" class="hidden relative h-56">
-        <canvas id="dashChart"></canvas>
-      </div>
+      <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Total förbrukning — senaste 30 dagarna</h3>
+      <div id="dashChartPlaceholder" class="flex items-center justify-center h-48 text-slate-600 text-sm">Laddar data...</div>
+      <div id="dashChartWrap" class="hidden relative h-56"><canvas id="dashChart"></canvas></div>
     </div>
-
-    <!-- Quick actions -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <button onclick="showSection('import')" class="bg-slate-800 border border-slate-700 p-4 text-left hover:border-slate-500 transition-colors">
         <p class="text-sm font-semibold text-white">Ladda upp data</p>
-        <p class="text-xs text-slate-500 mt-1">Importera försäljning, lager eller utgångsdatum</p>
+        <p class="text-xs text-slate-500 mt-1">Importera förbrukning, förråd eller rätt-försäljning</p>
       </button>
       <button onclick="showSection('recs')" class="bg-slate-800 border border-slate-700 p-4 text-left hover:border-slate-500 transition-colors">
-        <p class="text-sm font-semibold text-white">Beställningsrekommendationer</p>
-        <p class="text-xs text-slate-500 mt-1">Se vad som behöver beställas just nu</p>
+        <p class="text-sm font-semibold text-white">Inköpsrekommendationer</p>
+        <p class="text-xs text-slate-500 mt-1">Se vad som behöver köpas in just nu</p>
       </button>
-      <button onclick="showSection('waste')" class="bg-slate-800 border border-slate-700 p-4 text-left hover:border-slate-500 transition-colors">
-        <p class="text-sm font-semibold text-white">Svinnanalys</p>
-        <p class="text-xs text-slate-500 mt-1">Registrera och analysera kasserade produkter</p>
+      <button onclick="showSection('recipes')" class="bg-slate-800 border border-slate-700 p-4 text-left hover:border-slate-500 transition-colors">
+        <p class="text-sm font-semibold text-white">Recept &amp; portioner</p>
+        <p class="text-xs text-slate-500 mt-1">Hantera recept och se hur många portioner du kan laga</p>
       </button>
     </div>
   </div>
 
-  <!-- ══════ SECTION: IMPORT ══════ -->
+  <!-- ══════ IMPORT ══════ -->
   <div id="sec-import" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
     <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Importera data</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
 
       <div class="bg-slate-800 p-5 border border-slate-700">
-        <h3 class="text-sm font-semibold text-white mb-1">Försäljningsdata</h3>
+        <h3 class="text-sm font-semibold text-white mb-1">Ingrediensförbrukning</h3>
         <p class="text-xs text-slate-500 mb-1">Accepterar valfritt Excel/CSV-format.</p>
-        <p class="text-xs text-slate-600 mb-4">Behöver: produkt, datum, antal</p>
+        <p class="text-xs text-slate-600 mb-4">Behöver: ingrediens, datum, antal</p>
         <div class="flex gap-2">
           <label class="flex-1 cursor-pointer">
             <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" class="hidden" onchange="onFileChosen(this,'sales')">
             <div id="fileLabel" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-3 py-2 text-center text-xs text-slate-400 transition-colors truncate">Välj fil...</div>
           </label>
-          <button id="uploadBtn" onclick="triggerUpload('sales')"
-            class="bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 text-xs font-medium transition-colors whitespace-nowrap">Ladda upp</button>
+          <button id="uploadBtn" onclick="triggerUpload('sales')" class="bg-rose-800 hover:bg-rose-700 text-white px-4 py-2 text-xs font-medium transition-colors whitespace-nowrap">Ladda upp</button>
+        </div>
+      </div>
+
+      <div class="bg-slate-800 p-5 border border-slate-700">
+        <h3 class="text-sm font-semibold text-white mb-1">Rätt-försäljning</h3>
+        <p class="text-xs text-slate-500 mb-1">Ladda upp portioner per rätt. Omvandlas automatiskt till ingrediensförbrukning.</p>
+        <p class="text-xs text-slate-600 mb-4">Behöver: rätt, datum, portioner</p>
+        <div class="flex gap-2">
+          <label class="flex-1 cursor-pointer">
+            <input type="file" id="dishFileInput" accept=".csv,.xlsx,.xls" class="hidden" onchange="onFileChosen(this,'dish')">
+            <div id="dishFileLabel" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-3 py-2 text-center text-xs text-slate-400 transition-colors truncate">Välj fil...</div>
+          </label>
+          <button id="dishUploadBtn" onclick="triggerUpload('dish')" class="bg-amber-700 hover:bg-amber-600 text-white px-4 py-2 text-xs font-medium transition-colors whitespace-nowrap">Ladda upp</button>
         </div>
       </div>
 
       <div class="bg-slate-800 p-5 border border-slate-700">
         <h3 class="text-sm font-semibold text-white mb-1">Demo-data</h3>
-        <p class="text-xs text-slate-500 mb-4">90 dagars realistisk försäljning för 7 produkter.<br><span class="text-amber-400">Ersätter befintlig data.</span></p>
+        <p class="text-xs text-slate-500 mb-4">90 dagars realistisk förbrukning för 7 ingredienser.<br><span class="text-amber-400">Ersätter befintlig data.</span></p>
         <button id="demoBtn" onclick="generateDemo()" class="w-full bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 text-xs font-medium transition-colors">Generera demo-data</button>
       </div>
 
       <div class="bg-slate-800 p-5 border border-slate-700">
-        <h3 class="text-sm font-semibold text-white mb-1">Lagersaldo</h3>
+        <h3 class="text-sm font-semibold text-white mb-1">Förrådsaldo</h3>
         <p class="text-xs text-slate-500 mb-1">Accepterar valfritt Excel/CSV-format.</p>
-        <p class="text-xs text-slate-600 mb-4">Behöver: produkt, lagersaldo · <button onclick="downloadTemplate()" class="text-violet-400 hover:underline">Ladda ner mall</button></p>
+        <p class="text-xs text-slate-600 mb-4">Behöver: ingrediens, saldo</p>
         <div class="flex gap-2">
           <label class="flex-1 cursor-pointer">
             <input type="file" id="stockFileInput" accept=".csv,.xlsx,.xls" class="hidden" onchange="onFileChosen(this,'stock')">
             <div id="stockFileLabel" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-3 py-2 text-center text-xs text-slate-400 transition-colors truncate">Välj fil...</div>
           </label>
-          <button id="stockUploadBtn" onclick="triggerUpload('stock')"
-            class="bg-violet-700 hover:bg-violet-600 text-white px-4 py-2 text-xs font-medium transition-colors whitespace-nowrap">Uppdatera</button>
+          <button id="stockUploadBtn" onclick="triggerUpload('stock')" class="bg-violet-700 hover:bg-violet-600 text-white px-4 py-2 text-xs font-medium transition-colors whitespace-nowrap">Uppdatera</button>
         </div>
       </div>
 
       <div class="bg-slate-800 p-5 border border-slate-700">
         <h3 class="text-sm font-semibold text-white mb-1">Utgångsdatum</h3>
         <p class="text-xs text-slate-500 mb-1">Accepterar valfritt Excel/CSV-format.</p>
-        <p class="text-xs text-slate-600 mb-4">Behöver: produkt, utgångsdatum, antal · <button onclick="downloadExpiryTemplate()" class="text-rose-400 hover:underline">Ladda ner mall</button></p>
+        <p class="text-xs text-slate-600 mb-4">Behöver: ingrediens, utgångsdatum, antal · <button onclick="downloadExpiryTemplate()" class="text-rose-400 hover:underline">Ladda ner mall</button></p>
         <div class="flex gap-2">
           <label class="flex-1 cursor-pointer">
             <input type="file" id="expiryFileInput" accept=".csv,.xlsx,.xls" class="hidden" onchange="onFileChosen(this,'expiry')">
             <div id="expiryFileLabel" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-3 py-2 text-center text-xs text-slate-400 transition-colors truncate">Välj fil...</div>
           </label>
-          <button id="expiryUploadBtn" onclick="triggerUpload('expiry')"
-            class="bg-rose-700 hover:bg-rose-600 text-white px-4 py-2 text-xs font-medium transition-colors whitespace-nowrap">Uppdatera</button>
+          <button id="expiryUploadBtn" onclick="triggerUpload('expiry')" class="bg-rose-700 hover:bg-rose-600 text-white px-4 py-2 text-xs font-medium transition-colors whitespace-nowrap">Uppdatera</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ══════ SECTION: PROGNOS ══════ -->
+  <!-- ══════ PROGNOS ══════ -->
   <div id="sec-forecast" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
     <div class="bg-slate-800 border border-slate-700">
       <div class="px-6 py-4 border-b border-slate-700">
-        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Prognos per produkt</h2>
+        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Prognos per ingrediens</h2>
         <div class="flex flex-wrap gap-3 items-end">
           <div class="flex-1 min-w-44">
-            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">Produkt</label>
-            <select id="productSelect" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
-              <option value="">-- Välj produkt --</option>
+            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">Ingrediens</label>
+            <select id="productSelect" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-700">
+              <option value="">-- Välj ingrediens --</option>
             </select>
           </div>
           <div class="w-36">
-            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">Lager (st)</label>
-            <input type="number" id="stockInput" min="0" placeholder="Nuvarande" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">Förråd</label>
+            <input type="number" id="stockInput" min="0" placeholder="Nuvarande" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-700">
           </div>
           <div class="w-32">
             <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">Horisont</label>
-            <select id="daySelect" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <select id="daySelect" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-700">
               <option value="7" selected>7 dagar</option>
               <option value="14">14 dagar</option>
               <option value="30">30 dagar</option>
               <option value="90">90 dagar</option>
             </select>
           </div>
-          <button onclick="loadForecastForSelected()" class="bg-blue-700 hover:bg-blue-600 text-white px-5 py-2.5 text-sm font-medium transition-colors">Visa prognos</button>
+          <button onclick="loadForecastForSelected()" class="bg-rose-800 hover:bg-rose-700 text-white px-5 py-2.5 text-sm font-medium transition-colors">Visa prognos</button>
         </div>
       </div>
       <div class="p-6">
-        <div id="forecastPlaceholder" class="flex items-center justify-center h-48 text-slate-600 text-sm">Välj en produkt ovan</div>
+        <div id="forecastPlaceholder" class="flex items-center justify-center h-48 text-slate-600 text-sm">Välj en ingrediens ovan</div>
         <div id="forecastContent" class="hidden">
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Nuv. lager</p><p class="text-2xl font-bold text-white mt-1" id="sStock">–</p></div>
+            <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Nuv. förråd</p><p class="text-2xl font-bold text-white mt-1" id="sStock">–</p></div>
             <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Prognos <span id="dayLabelStat">7</span> dgr</p><p class="text-2xl font-bold text-white mt-1" id="sForecast">–</p></div>
-            <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Beställ</p><p class="text-2xl font-bold text-amber-400 mt-1" id="sOrder">–</p></div>
-            <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Lagerdagar</p><p class="text-2xl font-bold mt-1" id="sDays">–</p></div>
+            <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Köp in</p><p class="text-2xl font-bold text-amber-400 mt-1" id="sOrder">–</p></div>
+            <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Förråddagar</p><p class="text-2xl font-bold mt-1" id="sDays">–</p></div>
           </div>
           <div class="flex items-center gap-2 mb-4">
             <span id="methodBadge" class="text-xs px-2 py-0.5 bg-slate-700 text-slate-400 border border-slate-600"></span>
@@ -341,11 +372,11 @@
     </div>
   </div>
 
-  <!-- ══════ SECTION: RECOMMENDATIONS ══════ -->
+  <!-- ══════ INKÖPSREKOMMENDATIONER ══════ -->
   <div id="sec-recs" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
     <div class="bg-slate-800 border border-slate-700">
       <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Beställningsrekommendationer</h2>
+        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Inköpsrekommendationer</h2>
         <div class="flex gap-2">
           <select id="recsDaySelect" onchange="loadRecommendations()" class="bg-slate-700 border border-slate-600 px-2 py-1 text-white text-xs focus:outline-none">
             <option value="7">7 dagar</option><option value="14">14 dagar</option><option value="30">30 dagar</option>
@@ -358,62 +389,111 @@
     </div>
   </div>
 
-  <!-- ══════ SECTION: SUPPLIERS ══════ -->
+  <!-- ══════ LEVERANTÖRER ══════ -->
   <div id="sec-suppliers" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
     <div class="flex items-center justify-between">
       <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Leverantörer</h2>
-      <button onclick="openSupplierModal()" class="text-xs bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 font-medium transition-colors">+ Lägg till leverantör</button>
+      <button onclick="openSupplierModal()" class="text-xs bg-rose-800 hover:bg-rose-700 text-white px-4 py-2 font-medium transition-colors">+ Lägg till leverantör</button>
     </div>
-    <div id="suppliersContainer">
-      <p class="text-slate-600 text-sm text-center py-8">Laddar leverantörer...</p>
+    <div id="suppliersContainer"><p class="text-slate-600 text-sm text-center py-8">Laddar leverantörer...</p></div>
+  </div>
+
+  <!-- ══════ RECEPT ══════ -->
+  <div id="sec-recipes" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Recept</h2>
+      <button onclick="openRecipeModal()" class="text-xs bg-rose-800 hover:bg-rose-700 text-white px-4 py-2 font-medium transition-colors">+ Nytt recept</button>
+    </div>
+    <div id="recipesContainer"><p class="text-slate-600 text-sm text-center py-8">Laddar recept...</p></div>
+  </div>
+
+  <!-- ══════ DAGSMENY ══════ -->
+  <div id="sec-menu" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
+    <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Dagsmeny &amp; Inköpsplanering</h2>
+
+    <!-- Bokningar -->
+    <div class="bg-slate-800 border border-slate-700 p-6">
+      <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Bokningar — kommande 7 dagar</h3>
+      <div id="bookingsGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3"></div>
+      <div id="bookingWarnings" class="mt-4 space-y-2"></div>
+    </div>
+
+    <!-- Menybyggare -->
+    <div class="bg-slate-800 border border-slate-700 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Menybyggare</h3>
+        <button onclick="addMenuRow()" class="text-xs text-rose-400 hover:text-rose-300 px-2 py-1 border border-rose-800/50 hover:border-rose-700 transition-colors">+ Lägg till rätt</button>
+      </div>
+      <div id="menuRows" class="space-y-2 mb-4"></div>
+      <p id="menuEmpty" class="text-slate-600 text-xs mb-4">Inga rätter tillagda. Klicka "+ Lägg till rätt" för att börja.</p>
+      <div class="flex gap-3">
+        <button onclick="buildShoppingList()" class="bg-rose-800 hover:bg-rose-700 text-white px-5 py-2 text-sm font-medium transition-colors">Beräkna inköpslista</button>
+        <button onclick="clearMenu()" class="text-xs text-slate-400 hover:text-white px-3 py-2 border border-slate-600 transition-colors">Rensa meny</button>
+      </div>
+    </div>
+
+    <!-- Inköpslista resultat -->
+    <div id="shoppingListSection" class="hidden bg-slate-800 border border-slate-700 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Inköpslista</h3>
+        <button onclick="exportShoppingList()" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 border border-slate-600 transition-colors">Exportera Excel</button>
+      </div>
+      <div id="shoppingListTable"></div>
     </div>
   </div>
 
-  <!-- ══════ SECTION: WASTE ══════ -->
+  <!-- ══════ SVINN ══════ -->
   <div id="sec-waste" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
     <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Svinnanalys</h2>
 
-    <!-- Log waste form -->
     <div class="bg-slate-800 border border-slate-700 p-6">
       <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Registrera svinn</h3>
       <div class="flex flex-wrap gap-3 items-end">
         <div class="flex-1 min-w-40">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">Produkt</label>
-          <select id="wasteProduct" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-600">
-            <option value="">-- Välj produkt --</option>
+          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">Ingrediens</label>
+          <select id="wasteProduct" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+            <option value="">-- Välj ingrediens --</option>
           </select>
         </div>
         <div class="w-36">
           <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">Datum</label>
-          <input type="date" id="wasteDate" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-600">
+          <input type="date" id="wasteDate" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
         </div>
-        <div class="w-28">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">Antal (st)</label>
-          <input type="number" id="wasteQty" min="1" placeholder="0" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-600">
+        <div class="w-24">
+          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">Antal</label>
+          <input type="number" id="wasteQty" min="0.01" step="0.01" placeholder="0" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+        </div>
+        <div class="w-24">
+          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">Enhet</label>
+          <select id="wasteUnit" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+            <option value="st">st</option>
+            <option value="kg">kg</option>
+            <option value="liter">liter</option>
+          </select>
         </div>
         <div class="w-36">
           <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">Orsak</label>
-          <select id="wasteReason" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-600">
+          <select id="wasteReason" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
             <option value="utgått">Utgått</option>
             <option value="skadat">Skadat</option>
+            <option value="överproduktion">Överproduktion</option>
             <option value="övrigt">Övrigt</option>
           </select>
         </div>
-        <button onclick="logWaste()" class="bg-violet-700 hover:bg-violet-600 text-white px-5 py-2.5 text-sm font-medium transition-colors whitespace-nowrap">Registrera svinn</button>
+        <button onclick="logWaste()" class="bg-rose-800 hover:bg-rose-700 text-white px-5 py-2.5 text-sm font-medium transition-colors whitespace-nowrap">Registrera svinn</button>
       </div>
     </div>
 
-    <!-- Waste summary cards -->
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
       <div class="bg-slate-800 border border-slate-700 p-4">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Total svinnantalitet</p>
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Totalt svinn</p>
         <p class="text-2xl font-bold text-white mt-1" id="wasteTotalQty">–</p>
         <p class="text-xs text-slate-600 mt-0.5">enheter totalt</p>
       </div>
       <div class="bg-slate-800 border border-slate-700 p-4">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Total svinnskostnad</p>
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Svinnskostnad</p>
         <p class="text-2xl font-bold text-red-400 mt-1" id="wasteTotalCost">–</p>
-        <p class="text-xs text-slate-600 mt-0.5">kronor (baserat på pris)</p>
+        <p class="text-xs text-slate-600 mt-0.5">kronor (baserat på inköpspris)</p>
       </div>
       <div class="bg-slate-800 border border-slate-700 p-4 md:col-span-1 col-span-2">
         <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Vanligaste orsak</p>
@@ -421,15 +501,14 @@
       </div>
     </div>
 
-    <!-- Waste chart + table -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div class="bg-slate-800 border border-slate-700 p-5">
-        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Svinn per månad (antal)</h3>
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Svinn per vecka (antal)</h3>
         <div class="relative h-48"><canvas id="wasteChart"></canvas></div>
       </div>
       <div class="bg-slate-800 border border-slate-700 p-5">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Per produkt</h3>
+          <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Per ingrediens</h3>
           <button onclick="exportWaste()" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 border border-slate-600 transition-colors">Exportera Excel</button>
         </div>
         <div id="wasteTableContainer" class="overflow-y-auto max-h-44">
@@ -437,12 +516,17 @@
         </div>
       </div>
     </div>
+
+    <!-- Rekommendationer -->
+    <div id="wasteRecoBox" class="hidden bg-amber-500/10 border border-amber-500/30 p-4">
+      <h3 class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2">Rekommendationer</h3>
+      <ul id="wasteRecoList" class="space-y-1 text-xs text-amber-300"></ul>
+    </div>
   </div>
 
-  <!-- ══════ SECTION: STOCK ══════ -->
+  <!-- ══════ FÖRRÅD ══════ -->
   <div id="sec-stock" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
 
-    <!-- Expiry warnings -->
     <div class="bg-slate-800 border border-slate-700">
       <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
         <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Utgångsdatum — varningar</h2>
@@ -451,10 +535,9 @@
       <div id="expiryContainer" class="p-6"><p class="text-slate-600 text-sm text-center py-6">Inga utgångsdatum inlästa</p></div>
     </div>
 
-    <!-- Stock table -->
     <div class="bg-slate-800 border border-slate-700">
       <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Lageröversikt</h2>
+        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Förrådsöversikt</h2>
         <button onclick="loadStockTable()" class="text-xs text-slate-500 hover:text-white px-2 py-1 hover:bg-slate-700">↺ Uppdatera</button>
       </div>
       <div id="stockContainer" class="p-6"><p class="text-slate-600 text-sm text-center py-6">Laddar...</p></div>
@@ -468,36 +551,42 @@
 // Config & state
 // ============================================================
 const API = '';
-let token        = localStorage.getItem('g_token');
-let chartInst    = null;
-let dashChartInst = null;
+let token          = localStorage.getItem('g_token');
+let chartInst      = null;
+let dashChartInst  = null;
 let wasteChartInst = null;
-let _suppliers   = [];  // cached supplier list
+let _suppliers     = [];
+let _recipes       = [];
+let _products      = [];
+let _menuItems     = [];   // [{recipe_id, recipe_name, portions}]
+let _shoppingItems = [];   // last computed shopping list
 
-// ============================================================
-// Upload type config
-// ============================================================
 const UPLOAD_TYPES = {
-  sales:  { endpoint:'/api/upload',        labelId:'fileLabel',       inputId:'fileInput',       btnId:'uploadBtn',
-            fields:[{key:'vara',label:'Produkt / vara',required:true},{key:'datum',label:'Datum',required:true},{key:'antal',label:'Antal (försäljning)',required:true}]},
-  stock:  { endpoint:'/api/upload-stock',  labelId:'stockFileLabel',  inputId:'stockFileInput',  btnId:'stockUploadBtn',
-            fields:[{key:'vara',label:'Produkt / vara',required:true},{key:'lager',label:'Lagersaldo',required:true}]},
-  expiry: { endpoint:'/api/upload-expiry', labelId:'expiryFileLabel', inputId:'expiryFileInput', btnId:'expiryUploadBtn',
-            fields:[{key:'vara',label:'Produkt / vara',required:true},{key:'utgangsdatum',label:'Utgångsdatum',required:true},{key:'antal',label:'Antal',required:true}]},
+  sales:  { endpoint:'/api/upload',           labelId:'fileLabel',       inputId:'fileInput',       btnId:'uploadBtn',
+            fields:[{key:'vara',label:'Ingrediens',required:true},{key:'datum',label:'Datum',required:true},{key:'antal',label:'Antal',required:true}]},
+  dish:   { endpoint:'/api/upload-dish-sales', labelId:'dishFileLabel',  inputId:'dishFileInput',   btnId:'dishUploadBtn',
+            fields:[{key:'ratt',label:'Rätt / recept',required:true},{key:'datum',label:'Datum',required:true},{key:'portioner',label:'Portioner',required:true}]},
+  stock:  { endpoint:'/api/upload-stock',     labelId:'stockFileLabel',  inputId:'stockFileInput',  btnId:'stockUploadBtn',
+            fields:[{key:'vara',label:'Ingrediens',required:true},{key:'lager',label:'Förrådsaldo',required:true}]},
+  expiry: { endpoint:'/api/upload-expiry',    labelId:'expiryFileLabel', inputId:'expiryFileInput', btnId:'expiryUploadBtn',
+            fields:[{key:'vara',label:'Ingrediens',required:true},{key:'utgangsdatum',label:'Utgångsdatum',required:true},{key:'antal',label:'Antal',required:true}]},
 };
 let _mappingState = {file:null, type:null};
+
+const SECTIONS = ['dash','import','forecast','recs','suppliers','recipes','menu','waste','stock'];
 
 // ============================================================
 // Init
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
+  const rn = localStorage.getItem('g_restaurant_name');
+  if (rn) document.getElementById('restaurantName').textContent = rn;
   if (token) { showDashboard(); initDashboard(); }
   document.getElementById('loginForm').addEventListener('submit', login);
   document.getElementById('productSelect').addEventListener('change', function(){
     const o=this.options[this.selectedIndex];
     if(o.dataset.stock!==undefined) document.getElementById('stockInput').value=o.dataset.stock;
   });
-  // Set waste date default to today
   document.getElementById('wasteDate').value = new Date().toISOString().slice(0,10);
 });
 
@@ -509,19 +598,19 @@ function initDashboard() {
 // ============================================================
 // Section navigation
 // ============================================================
-const SECTIONS = ['dash','import','forecast','recs','suppliers','waste','stock'];
-
 function showSection(name) {
   SECTIONS.forEach(s => {
     document.getElementById(`sec-${s}`).classList.toggle('hidden', s !== name);
     const nb = document.getElementById(`nav-${s}`);
     if (nb) nb.classList.toggle('active', s === name);
   });
-  if (name === 'dash')      loadDashboard();
-  if (name === 'recs')      loadRecommendations();
-  if (name === 'suppliers') loadSuppliers();
-  if (name === 'waste')     loadWasteReport();
-  if (name === 'stock')     { loadStockTable(); loadExpiryTable(); }
+  if (name==='dash')      loadDashboard();
+  if (name==='recs')      loadRecommendations();
+  if (name==='suppliers') loadSuppliers();
+  if (name==='recipes')   loadRecipes();
+  if (name==='menu')      loadMenuSection();
+  if (name==='waste')     loadWasteReport();
+  if (name==='stock')     { loadStockTable(); loadExpiryTable(); }
 }
 
 // ============================================================
@@ -551,6 +640,12 @@ function showDashboard(){
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('dashboard').classList.remove('hidden');
   document.getElementById('headerEmail').textContent=localStorage.getItem('g_email')||'';
+  const rn=localStorage.getItem('g_restaurant_name');
+  if(rn) document.getElementById('restaurantName').textContent=rn;
+}
+function editRestaurantName(){
+  const n=prompt('Restaurangens namn:',localStorage.getItem('g_restaurant_name')||'');
+  if(n!==null){ localStorage.setItem('g_restaurant_name',n||''); document.getElementById('restaurantName').textContent=n||'Min Restaurang'; }
 }
 
 // ============================================================
@@ -567,29 +662,22 @@ async function api(path, opts={}) {
 // ============================================================
 async function loadDashboard() {
   try {
-    const res=await api('/api/dashboard');
-    const d=await res.json();
-    document.getElementById('kpiTotal').textContent  = d.total_products;
-    document.getElementById('kpiUrgent').textContent = d.urgent_count;
-    document.getElementById('kpiExpiry').textContent = d.expiring_soon_count;
-    document.getElementById('kpiSales').textContent  = d.recent_sales_7d.toLocaleString('sv-SE');
+    const res=await api('/api/dashboard'); const d=await res.json();
+    document.getElementById('kpiTotal').textContent       = d.total_products;
+    document.getElementById('kpiUrgent').textContent      = d.urgent_count;
+    document.getElementById('kpiLowPortions').textContent = d.low_portions_count;
+    document.getElementById('kpiSales').textContent       = d.recent_sales_7d.toLocaleString('sv-SE');
 
-    const daily = d.daily_sales_30d;
-    const wrap  = document.getElementById('dashChartWrap');
-    const ph    = document.getElementById('dashChartPlaceholder');
-
-    if (!daily.length) {
-      ph.textContent = 'Ingen försäljningsdata — ladda upp data eller generera demo-data.'; return;
-    }
+    const daily=d.daily_sales_30d;
+    const wrap=document.getElementById('dashChartWrap');
+    const ph=document.getElementById('dashChartPlaceholder');
+    if(!daily.length){ ph.textContent='Ingen data — ladda upp data eller generera demo-data.'; return; }
     ph.classList.add('hidden'); wrap.classList.remove('hidden');
-    if (dashChartInst) dashChartInst.destroy();
-    dashChartInst = new Chart(document.getElementById('dashChart').getContext('2d'), {
+    if(dashChartInst) dashChartInst.destroy();
+    dashChartInst=new Chart(document.getElementById('dashChart').getContext('2d'),{
       type:'bar',
-      data:{
-        labels: daily.map(r=>r.date),
-        datasets:[{label:'Försäljning',data:daily.map(r=>r.total),
-          backgroundColor:'rgba(59,130,246,0.4)',borderColor:'rgba(59,130,246,0.8)',borderWidth:1}]
-      },
+      data:{labels:daily.map(r=>r.date),datasets:[{label:'Förbrukning',data:daily.map(r=>r.total),
+        backgroundColor:'rgba(190,18,60,0.35)',borderColor:'rgba(190,18,60,0.7)',borderWidth:1}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
         scales:{x:{ticks:{color:'#475569',maxRotation:45,autoSkip:true,maxTicksLimit:12,font:{size:10}},grid:{color:'rgba(71,85,105,0.15)'}},
                 y:{ticks:{color:'#475569',font:{size:11}},grid:{color:'rgba(71,85,105,0.15)'},beginAtZero:true}}}
@@ -603,11 +691,11 @@ async function loadDashboard() {
 async function loadProducts() {
   try {
     const data=await (await api('/api/products')).json();
+    _products=data;
     ['productSelect','wasteProduct'].forEach(id=>{
-      const sel=document.getElementById(id);
-      if(!sel) return;
+      const sel=document.getElementById(id); if(!sel) return;
       const prev=sel.value;
-      sel.innerHTML='<option value="">-- Välj produkt --</option>';
+      sel.innerHTML='<option value="">-- Välj ingrediens --</option>';
       data.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;o.dataset.stock=p.stock;sel.appendChild(o);});
       if(prev) sel.value=prev;
     });
@@ -619,7 +707,7 @@ async function loadProducts() {
 }
 
 // ============================================================
-// Upload (universal column mapping flow)
+// Upload (universal column mapping)
 // ============================================================
 function onFileChosen(input,type){
   const file=input.files[0]; if(!file) return;
@@ -646,7 +734,7 @@ async function openPreviewModal(file,type){
   finally{ btn.textContent=orig; btn.disabled=false; }
 }
 function renderMappingModal(data,type){
-  const {columns,preview,suggestions}=data; const cfg=UPLOAD_TYPES[type];
+  const{columns,preview,suggestions}=data; const cfg=UPLOAD_TYPES[type];
   document.getElementById('mappingFileInfo').textContent=
     `${_mappingState.file.name} — ${columns.length} kolumn${columns.length!==1?'er':''} identifierad${columns.length!==1?'e':''}`;
   const fieldsEl=document.getElementById('mappingFields'); fieldsEl.innerHTML='';
@@ -654,8 +742,8 @@ function renderMappingModal(data,type){
   cfg.fields.forEach(f=>{
     const sug=suggestions[f.key]; const div=document.createElement('div');
     div.className='flex items-center gap-3';
-    div.innerHTML=`<label for="map_${f.key}" class="w-40 text-xs font-medium text-slate-400 text-right flex-shrink-0">${escHtml(f.label)}${f.required?'  <span class="text-red-400">*</span>':''}</label>
-      <select id="map_${f.key}" class="flex-1 bg-slate-700 border ${sug?'border-emerald-600/50':'border-amber-500/50'} px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-600">
+    div.innerHTML=`<label class="w-40 text-xs font-medium text-slate-400 text-right flex-shrink-0">${escHtml(f.label)}${f.required?' <span class="text-red-400">*</span>':''}</label>
+      <select id="map_${f.key}" class="flex-1 bg-slate-700 border ${sug?'border-emerald-600/50':'border-amber-500/50'} px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-rose-700">
         <option value="">-- Välj kolumn --</option>
         ${columns.map(c=>`<option value="${escHtml(c)}"${c===sug?' selected':''}>${escHtml(c)}</option>`).join('')}
       </select>
@@ -697,7 +785,7 @@ async function confirmMappingUpload(){
 }
 
 // ============================================================
-// Demo data
+// Demo
 // ============================================================
 async function generateDemo(){
   const btn=document.getElementById('demoBtn'); btn.textContent='Genererar...'; btn.disabled=true;
@@ -710,10 +798,6 @@ async function generateDemo(){
   finally{ btn.textContent='Generera demo-data'; btn.disabled=false; }
 }
 
-// ============================================================
-// Template downloads
-// ============================================================
-async function downloadTemplate(){try{const r=await api('/api/stock-template');if(!r.ok){showAlert('Fel','error');return;}dlBlob(await r.blob(),'lager_mall.xlsx');}catch(e){showAlert(e.message,'error');}}
 async function downloadExpiryTemplate(){try{const r=await api('/api/expiry-template');if(!r.ok){showAlert('Fel','error');return;}dlBlob(await r.blob(),'utgangsdatum_mall.xlsx');}catch(e){showAlert(e.message,'error');}}
 function dlBlob(blob,filename){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
 
@@ -724,8 +808,8 @@ async function loadForecastForSelected(){
   const name=document.getElementById('productSelect').value;
   const stock=document.getElementById('stockInput').value;
   const days=parseInt(document.getElementById('daySelect').value,10)||7;
-  if(!name){showAlert('Välj en produkt','error');return;}
-  if(stock!==''){try{await api(`/api/stock/${encodeURIComponent(name)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({stock:parseInt(stock,10)})});}catch(_){}}
+  if(!name){showAlert('Välj en ingrediens','error');return;}
+  if(stock!==''){try{await api(`/api/stock/${encodeURIComponent(name)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({stock:parseFloat(stock)})});}catch(_){}}
   await loadForecast(name,days);
 }
 async function loadForecast(name,days=7){
@@ -745,7 +829,7 @@ async function loadForecast(name,days=7){
     if(fc.days_stock!=null){de.textContent=fc.days_stock;de.className='text-2xl font-bold mt-1 '+statusColor(fc.status);}
     else{de.textContent='–';de.className='text-2xl font-bold mt-1 text-slate-500';}
     document.getElementById('methodBadge').textContent=fc.method==='prophet'?'Prophet AI':'Glidande medelvärde';
-    document.getElementById('methodDesc').textContent=fc.method==='prophet'?'Prophet-modell med svenska helgdagar, 80% konfidensintervall':'Exponentiellt viktat glidande medelvärde med veckodag-faktorer';
+    document.getElementById('methodDesc').textContent=fc.method==='prophet'?'Prophet-modell med svenska helgdagar':'Exponentiellt viktat glidande medelvärde';
     renderForecastChart(sales,fc);
   } catch(err){ showAlert('Fel: '+err.message,'error'); }
 }
@@ -757,13 +841,13 @@ function renderForecastChart(sales,fc){
   const fD=fc.forecast.map(f=>f.date),fP=fc.forecast.map(f=>f.predicted),fU=fc.forecast.map(f=>f.upper),fL=fc.forecast.map(f=>f.lower);
   const labels=[...hD,...fD],pad=hD.map(()=>null);
   chartInst=new Chart(ctx,{type:'bar',data:{labels,datasets:[
-    {label:'Historisk försäljning',type:'bar',data:[...hV,...fD.map(()=>null)],backgroundColor:'rgba(59,130,246,0.30)',borderColor:'rgba(59,130,246,0.6)',borderWidth:1,order:10},
-    {label:'Övre gräns',type:'line',data:[...pad,...fU],borderColor:'transparent',backgroundColor:'rgba(59,130,246,0.10)',fill:'+1',pointRadius:0,tension:0.4,order:4},
+    {label:'Historisk förbrukning',type:'bar',data:[...hV,...fD.map(()=>null)],backgroundColor:'rgba(190,18,60,0.25)',borderColor:'rgba(190,18,60,0.6)',borderWidth:1,order:10},
+    {label:'Övre gräns',type:'line',data:[...pad,...fU],borderColor:'transparent',backgroundColor:'rgba(190,18,60,0.10)',fill:'+1',pointRadius:0,tension:0.4,order:4},
     {label:'Nedre gräns',type:'line',data:[...pad,...fL],borderColor:'transparent',fill:false,pointRadius:0,tension:0.4,order:4},
-    {label:'Prognos',type:'line',data:[...pad,...fP],borderColor:'#3b82f6',backgroundColor:'transparent',borderWidth:2,pointRadius:3,pointBackgroundColor:'#3b82f6',tension:0.4,fill:false,order:1},
+    {label:'Prognos',type:'line',data:[...pad,...fP],borderColor:'#be123c',backgroundColor:'transparent',borderWidth:2,pointRadius:3,pointBackgroundColor:'#be123c',tension:0.4,fill:false,order:1},
   ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
     plugins:{legend:{labels:{color:'#64748b',filter:i=>!i.text.includes('gräns'),boxWidth:10,font:{size:11}}},
-      tooltip:{callbacks:{label:ctx=>{if(ctx.dataset.label?.includes('gräns'))return null;const v=ctx.parsed.y;if(v==null)return null;return ` ${ctx.dataset.label}: ${v.toFixed(0)}`;}}}},
+      tooltip:{callbacks:{label:ctx=>{if(ctx.dataset.label?.includes('gräns'))return null;const v=ctx.parsed.y;if(v==null)return null;return ` ${ctx.dataset.label}: ${v.toFixed(1)}`;}}}},
     scales:{x:{ticks:{color:'#475569',maxRotation:45,autoSkip:true,maxTicksLimit:14,font:{size:10}},grid:{color:'rgba(71,85,105,0.15)'}},
             y:{ticks:{color:'#475569',font:{size:11}},grid:{color:'rgba(71,85,105,0.15)'},beginAtZero:true}}}});
 }
@@ -777,14 +861,14 @@ async function loadRecommendations(){
   c.innerHTML='<p class="text-slate-500 text-sm text-center py-6">Laddar...</p>';
   try {
     const res=await api(`/api/recommendations?days=${days}`); const data=await res.json();
-    if(!data.length){c.innerHTML='<p class="text-slate-600 text-sm text-center py-8">Inga produkter — ladda upp data.</p>';return;}
+    if(!data.length){c.innerHTML='<p class="text-slate-600 text-sm text-center py-8">Inga ingredienser — ladda upp data.</p>';return;}
     const fDays=data[0]?.forecast_days||days;
     c.innerHTML=`<div class="overflow-x-auto"><table class="w-full text-sm">
       <thead><tr class="text-slate-500 text-xs uppercase tracking-wider text-left border-b border-slate-700">
-        <th class="pb-3 pr-3 font-semibold">Status</th><th class="pb-3 pr-4 font-semibold">Produkt</th>
-        <th class="pb-3 pr-4 font-semibold text-right">Lager</th><th class="pb-3 pr-4 font-semibold text-right">Prognos ${fDays}d</th>
-        <th class="pb-3 pr-4 font-semibold text-right">Beställ</th><th class="pb-3 pr-4 font-semibold text-right">Lagerdagar</th>
-        <th class="pb-3 pr-4 font-semibold">Leverantör</th><th class="pb-3 font-semibold">Utgång</th>
+        <th class="pb-3 pr-3 font-semibold">Status</th><th class="pb-3 pr-4 font-semibold">Ingrediens</th>
+        <th class="pb-3 pr-4 font-semibold text-right">Förråd</th><th class="pb-3 pr-4 font-semibold text-right">Prognos ${fDays}d</th>
+        <th class="pb-3 pr-4 font-semibold text-right">Köp in</th><th class="pb-3 pr-4 font-semibold text-right">Förråddagar</th>
+        <th class="pb-3 pr-4 font-semibold">Leverantör</th>
       </tr></thead><tbody id="recsTbody" class="divide-y divide-slate-700/40"></tbody></table></div>`;
     const tbody=document.getElementById('recsTbody');
     data.forEach((item,i)=>{
@@ -792,11 +876,8 @@ async function loadRecommendations(){
       tr.className=`${i%2?'bg-slate-700/10':''} hover:bg-slate-700/20 transition-colors`;
       const stockD=item.stock_initialized?item.current_stock:'<span class="text-amber-400 text-xs">Ej angivet</span>';
       const daysD=(item.days_stock!=null)?`<span class="${statusColor(item.status)}">${item.days_stock}</span>`:'<span class="text-slate-500">–</span>';
-      let expiryC='<span class="text-slate-600 text-xs">–</span>';
-      if(item.expiry_critical_qty>0) expiryC=`<span class="inline-flex items-center gap-1 text-xs text-red-400 font-medium"><span class="status-dot bg-red-500"></span>Sälj först (${item.expiry_critical_qty} st)</span>`;
-      else if(item.expiry_warning_qty>0) expiryC=`<span class="inline-flex items-center gap-1 text-xs text-yellow-400"><span class="status-dot bg-yellow-400"></span>${item.expiry_warning_qty} st</span>`;
       const supC=item.supplier_name
-        ?`<span class="text-xs text-slate-300">${escHtml(item.supplier_name)}</span>${item.lead_time_days?`<span class="block text-xs text-slate-600">${item.lead_time_days} dagar ledtid</span>`:''}`
+        ?`<span class="text-xs text-slate-300">${escHtml(item.supplier_name)}</span>${item.lead_time_days?`<span class="block text-xs text-slate-600">${item.lead_time_days} dgr ledtid</span>`:''}`
         :'<span class="text-slate-600 text-xs">–</span>';
       tr.innerHTML=`
         <td class="py-3 pr-3"><span class="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium border ${statusBadge(item.status)}"><span class="status-dot ${statusDotColor(item.status)}"></span>${statusLabel(item.status)}</span></td>
@@ -805,8 +886,7 @@ async function loadRecommendations(){
         <td class="py-3 pr-4 text-right text-slate-300">${item.total_forecast??'–'}</td>
         <td class="py-3 pr-4 text-right font-semibold ${item.order_quantity>0?'text-amber-400':'text-emerald-400'}">${item.order_quantity>0?item.order_quantity:'OK'}</td>
         <td class="py-3 pr-4 text-right font-medium">${daysD}</td>
-        <td class="py-3 pr-4">${supC}</td>
-        <td class="py-3">${expiryC}</td>`;
+        <td class="py-3 pr-4">${supC}</td>`;
       tbody.appendChild(tr);
     });
   } catch(err){ c.innerHTML=`<p class="text-red-400 text-sm text-center py-8">Fel: ${escHtml(err.message)}</p>`; }
@@ -818,26 +898,19 @@ async function loadRecommendations(){
 async function loadSuppliers(){
   const c=document.getElementById('suppliersContainer');
   try {
-    const data=await (await api('/api/suppliers')).json();
-    _suppliers=data;
+    const data=await (await api('/api/suppliers')).json(); _suppliers=data;
     if(!data.length){
       c.innerHTML=`<div class="bg-slate-800 border border-slate-700 p-12 text-center">
         <p class="text-slate-500 text-sm mb-4">Inga leverantörer registrerade ännu.</p>
-        <button onclick="openSupplierModal()" class="text-sm bg-blue-700 hover:bg-blue-600 text-white px-5 py-2 font-medium transition-colors">+ Lägg till leverantör</button>
-      </div>`;
+        <button onclick="openSupplierModal()" class="text-sm bg-rose-800 hover:bg-rose-700 text-white px-5 py-2 font-medium transition-colors">+ Lägg till leverantör</button></div>`;
       return;
     }
-    c.innerHTML=`<div class="bg-slate-800 border border-slate-700">
-      <table class="w-full text-sm">
-        <thead><tr class="text-slate-500 text-xs uppercase tracking-wider text-left border-b border-slate-700">
-          <th class="px-6 py-3 font-semibold">Namn</th><th class="px-4 py-3 font-semibold">Kontakt</th>
-          <th class="px-4 py-3 font-semibold">E-post</th><th class="px-4 py-3 font-semibold">Telefon</th>
-          <th class="px-4 py-3 font-semibold text-right">Ledtid</th><th class="px-4 py-3 font-semibold text-right">Min. order</th>
-          <th class="px-4 py-3 font-semibold text-right">Åtgärder</th>
-        </tr></thead>
-        <tbody id="suppliersTbody" class="divide-y divide-slate-700/40"></tbody>
-      </table>
-    </div>`;
+    c.innerHTML=`<div class="bg-slate-800 border border-slate-700"><table class="w-full text-sm">
+      <thead><tr class="text-slate-500 text-xs uppercase tracking-wider text-left border-b border-slate-700">
+        <th class="px-6 py-3 font-semibold">Namn</th><th class="px-4 py-3 font-semibold">Kontakt</th>
+        <th class="px-4 py-3 font-semibold">E-post</th><th class="px-4 py-3 font-semibold text-right">Ledtid</th>
+        <th class="px-4 py-3 font-semibold text-right">Åtgärder</th>
+      </tr></thead><tbody id="suppliersTbody" class="divide-y divide-slate-700/40"></tbody></table></div>`;
     const tbody=document.getElementById('suppliersTbody');
     data.forEach((s,i)=>{
       const tr=document.createElement('tr');
@@ -846,12 +919,10 @@ async function loadSuppliers(){
         <td class="px-6 py-3 font-medium text-white">${escHtml(s.name)}</td>
         <td class="px-4 py-3 text-slate-300">${escHtml(s.contact_person)||'–'}</td>
         <td class="px-4 py-3 text-slate-300 text-xs font-mono">${escHtml(s.email)||'–'}</td>
-        <td class="px-4 py-3 text-slate-300">${escHtml(s.phone)||'–'}</td>
         <td class="px-4 py-3 text-right text-slate-300">${s.lead_time_days} dagar</td>
-        <td class="px-4 py-3 text-right text-slate-300">${s.min_order_qty} st</td>
         <td class="px-4 py-3 text-right">
           <div class="inline-flex gap-1">
-            <button onclick="generateOrderEmail(${s.id})" class="text-xs bg-emerald-700 hover:bg-emerald-600 text-white px-2.5 py-1 transition-colors whitespace-nowrap">Beställningsmail</button>
+            <button onclick="generateOrderEmail(${s.id})" class="text-xs bg-emerald-700 hover:bg-emerald-600 text-white px-2.5 py-1 transition-colors whitespace-nowrap">Inköpsmail</button>
             <button onclick="openSupplierModal(${s.id})" class="text-xs bg-slate-600 hover:bg-slate-500 text-white px-2.5 py-1 border border-slate-500 transition-colors">Redigera</button>
             <button onclick="deleteSupplier(${s.id},'${escHtml(s.name).replace(/'/g,"\\'")}')" class="text-xs text-red-400 hover:text-red-300 px-2 py-1 hover:bg-red-500/10 transition-colors">Ta bort</button>
           </div>
@@ -877,33 +948,21 @@ function closeSupplierModal(){document.getElementById('supplierModal').classList
 
 async function saveSupplier(){
   const id=document.getElementById('supplierId').value;
-  const body={
-    name:         document.getElementById('supplierName').value.trim(),
-    contact_person:document.getElementById('supplierContact').value.trim(),
-    email:        document.getElementById('supplierEmail').value.trim(),
-    phone:        document.getElementById('supplierPhone').value.trim(),
-    lead_time_days:parseInt(document.getElementById('supplierLead').value)||3,
-    min_order_qty: parseInt(document.getElementById('supplierMinQty').value)||1,
-  };
+  const body={name:document.getElementById('supplierName').value.trim(),contact_person:document.getElementById('supplierContact').value.trim(),
+    email:document.getElementById('supplierEmail').value.trim(),phone:document.getElementById('supplierPhone').value.trim(),
+    lead_time_days:parseInt(document.getElementById('supplierLead').value)||3,min_order_qty:parseInt(document.getElementById('supplierMinQty').value)||1};
   if(!body.name){showAlert('Namn krävs','error');return;}
   try {
     const res=await api(id?`/api/suppliers/${id}`:'/api/suppliers',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const data=await res.json();
-    if(!res.ok) throw new Error(data.error);
-    closeSupplierModal(); showAlert(id?'Leverantör uppdaterad':'Leverantör skapad','success');
-    await loadSuppliers();
+    const data=await res.json(); if(!res.ok) throw new Error(data.error);
+    closeSupplierModal(); showAlert(id?'Leverantör uppdaterad':'Leverantör skapad','success'); await loadSuppliers();
   } catch(err){ showAlert(err.message,'error'); }
 }
-
 async function deleteSupplier(id,name){
-  if(!confirm(`Ta bort "${name}"? Kopplingen till produkter tas bort.`)) return;
-  try {
-    const res=await api(`/api/suppliers/${id}`,{method:'DELETE'});
-    if(!res.ok) throw new Error((await res.json()).error);
-    showAlert(`${name} borttagen`,'success'); await loadSuppliers();
-  } catch(err){ showAlert(err.message,'error'); }
+  if(!confirm(`Ta bort "${name}"?`)) return;
+  try { const res=await api(`/api/suppliers/${id}`,{method:'DELETE'}); if(!res.ok) throw new Error((await res.json()).error);
+    showAlert(`${name} borttagen`,'success'); await loadSuppliers(); } catch(err){ showAlert(err.message,'error'); }
 }
-
 async function generateOrderEmail(supplierId){
   try {
     const res=await api(`/api/order-email/${supplierId}?days=14`); const data=await res.json();
@@ -916,15 +975,251 @@ async function generateOrderEmail(supplierId){
     document.getElementById('emailModal').dataset.subject=data.subject;
   } catch(err){ showAlert(err.message,'error'); }
 }
-function copyEmail(){
-  const body=document.getElementById('emailBody').value;
-  navigator.clipboard.writeText(body).then(()=>showAlert('Kopierat till urklipp','success')).catch(()=>showAlert('Kunde inte kopiera','error'));
+function copyEmail(){navigator.clipboard.writeText(document.getElementById('emailBody').value).then(()=>showAlert('Kopierat till urklipp','success')).catch(()=>showAlert('Kunde inte kopiera','error'));}
+function openMailto(){const to=document.getElementById('emailModal').dataset.to||'';const sub=encodeURIComponent(document.getElementById('emailModal').dataset.subject||'');const body=encodeURIComponent(document.getElementById('emailBody').value);window.location.href=`mailto:${to}?subject=${sub}&body=${body}`;}
+
+// ============================================================
+// Recipes
+// ============================================================
+async function loadRecipes(){
+  const c=document.getElementById('recipesContainer');
+  try {
+    const data=await (await api('/api/recipes')).json(); _recipes=data;
+    if(!data.length){
+      c.innerHTML=`<div class="bg-slate-800 border border-slate-700 p-12 text-center">
+        <p class="text-slate-500 text-sm mb-4">Inga recept registrerade ännu.</p>
+        <button onclick="openRecipeModal()" class="text-sm bg-rose-800 hover:bg-rose-700 text-white px-5 py-2 font-medium transition-colors">+ Skapa första receptet</button></div>`;
+      return;
+    }
+    let html='<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">';
+    data.forEach(r=>{
+      const pa=r.portions_available;
+      const low=r.low_stock_warning;
+      const portText=pa===null?'<span class="text-slate-500 text-xs">Förråd ej angivet</span>'
+        :`<span class="text-2xl font-bold ${low?'text-red-400':pa<20?'text-amber-400':'text-emerald-400'}">${pa}</span><span class="text-xs text-slate-500 ml-1">portioner möjliga</span>`;
+      const ingLines=r.ingredients.map(i=>`<li class="flex justify-between text-xs text-slate-400"><span>${escHtml(i.ingredient)}</span><span class="text-slate-500">${i.quantity} ${i.unit}</span></li>`).join('');
+      html+=`<div class="bg-slate-800 border ${low?'border-red-800/70':'border-slate-700'} p-5">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <h3 class="font-semibold text-white text-sm">${escHtml(r.name)}</h3>
+            <p class="text-xs text-slate-500 mt-0.5">${r.portions} portion${r.portions!==1?'er':''} per batch</p>
+          </div>
+          <div class="text-right">${portText}</div>
+        </div>
+        ${low?'<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs px-3 py-1.5 mb-3">Varning: färre än 10 portioner i förråd</div>':''}
+        ${r.ingredients.length?`<ul class="space-y-1 mb-4 border-t border-slate-700 pt-3">${ingLines}</ul>`:'<p class="text-slate-600 text-xs mb-4">Inga ingredienser</p>'}
+        <div class="flex gap-2">
+          <button onclick="openRecipeModal(${r.id})" class="text-xs bg-slate-600 hover:bg-slate-500 text-white px-3 py-1.5 border border-slate-500 transition-colors">Redigera</button>
+          <button onclick="deleteRecipe(${r.id},'${escHtml(r.name).replace(/'/g,"\\'")}')" class="text-xs text-red-400 hover:text-red-300 px-2 py-1.5 hover:bg-red-500/10 transition-colors">Ta bort</button>
+        </div>
+      </div>`;
+    });
+    html+='</div>';
+    c.innerHTML=html;
+  } catch(err){ c.innerHTML=`<p class="text-red-400 text-sm text-center py-8">Fel: ${escHtml(err.message)}</p>`; }
 }
-function openMailto(){
-  const to=document.getElementById('emailModal').dataset.to||'';
-  const sub=encodeURIComponent(document.getElementById('emailModal').dataset.subject||'');
-  const body=encodeURIComponent(document.getElementById('emailBody').value);
-  window.location.href=`mailto:${to}?subject=${sub}&body=${body}`;
+
+function openRecipeModal(id){
+  const r=id?_recipes.find(x=>x.id===id):null;
+  document.getElementById('recipeModalTitle').textContent=r?'Redigera recept':'Nytt recept';
+  document.getElementById('recipeId').value=r?r.id:'';
+  document.getElementById('recipeName').value=r?r.name:'';
+  document.getElementById('recipePortions').value=r?r.portions:1;
+  document.getElementById('recipeIngredients').innerHTML='';
+  if(r&&r.ingredients.length){
+    r.ingredients.forEach(i=>addIngredientRow(i.product_id,i.quantity,i.unit));
+  }
+  updateIngredientEmpty();
+  document.getElementById('recipeModal').classList.remove('hidden');
+}
+function closeRecipeModal(){document.getElementById('recipeModal').classList.add('hidden');}
+function updateIngredientEmpty(){
+  const rows=document.querySelectorAll('#recipeIngredients .ing-row');
+  document.getElementById('recipeIngEmpty').classList.toggle('hidden',rows.length>0);
+}
+function addIngredientRow(pid='',qty='',unit='st'){
+  const container=document.getElementById('recipeIngredients');
+  const div=document.createElement('div');
+  div.className='ing-row flex gap-2 items-center';
+  const opts=_products.map(p=>`<option value="${p.name}"${p.name===pid||p.id===pid?' selected':''}>${escHtml(p.name)}</option>`).join('');
+  div.innerHTML=`
+    <select class="ing-product flex-1 bg-slate-700 border border-slate-600 px-2 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-rose-700">
+      <option value="">-- Välj ingrediens --</option>${opts}
+    </select>
+    <input type="number" class="ing-qty w-20 bg-slate-700 border border-slate-600 px-2 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-rose-700" placeholder="Mängd" min="0.001" step="0.001" value="${qty}">
+    <select class="ing-unit w-20 bg-slate-700 border border-slate-600 px-2 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-rose-700">
+      <option value="st"${unit==='st'?' selected':''}>st</option>
+      <option value="kg"${unit==='kg'?' selected':''}>kg</option>
+      <option value="liter"${unit==='liter'?' selected':''}>liter</option>
+      <option value="dl"${unit==='dl'?' selected':''}>dl</option>
+      <option value="g"${unit==='g'?' selected':''}>g</option>
+      <option value="cl"${unit==='cl'?' selected':''}>cl</option>
+    </select>
+    <button onclick="this.closest('.ing-row').remove();updateIngredientEmpty()" class="text-slate-500 hover:text-red-400 px-1 py-1 text-lg leading-none">&times;</button>`;
+  container.appendChild(div);
+  updateIngredientEmpty();
+}
+async function saveRecipe(){
+  const id=document.getElementById('recipeId').value;
+  const name=document.getElementById('recipeName').value.trim();
+  const portions=parseInt(document.getElementById('recipePortions').value)||1;
+  if(!name){showAlert('Receptnamn krävs','error');return;}
+  const ingredients=[];
+  document.querySelectorAll('#recipeIngredients .ing-row').forEach(row=>{
+    const pName=row.querySelector('.ing-product').value;
+    const qty=parseFloat(row.querySelector('.ing-qty').value);
+    const unit=row.querySelector('.ing-unit').value;
+    const prod=_products.find(p=>p.name===pName);
+    if(prod&&qty>0) ingredients.push({product_id:prod.id,quantity:qty,unit});
+  });
+  try {
+    const res=await api(id?`/api/recipes/${id}`:'/api/recipes',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,portions,ingredients})});
+    const data=await res.json(); if(!res.ok) throw new Error(data.error);
+    closeRecipeModal(); showAlert(id?'Recept uppdaterat':'Recept skapat','success'); await loadRecipes();
+  } catch(err){ showAlert(err.message,'error'); }
+}
+async function deleteRecipe(id,name){
+  if(!confirm(`Ta bort receptet "${name}"?`)) return;
+  try { const res=await api(`/api/recipes/${id}`,{method:'DELETE'}); if(!res.ok) throw new Error((await res.json()).error);
+    showAlert(`${name} borttaget`,'success'); await loadRecipes(); } catch(err){ showAlert(err.message,'error'); }
+}
+
+// ============================================================
+// Dagsmeny (Daily menu + bookings)
+// ============================================================
+async function loadMenuSection(){
+  await Promise.all([loadBookings(),loadRecipes()]);
+  renderMenuRows();
+}
+
+async function loadBookings(){
+  try {
+    const data=await (await api('/api/bookings')).json();
+    const grid=document.getElementById('bookingsGrid'); grid.innerHTML='';
+    const days=['Sön','Mån','Tis','Ons','Tor','Fre','Lör'];
+    data.forEach(b=>{
+      const d=new Date(b.date+'T12:00:00');
+      const dayName=days[d.getDay()];
+      const div=document.createElement('div');
+      div.className='bg-slate-700/40 border border-slate-700 p-3 text-center';
+      div.innerHTML=`<p class="text-xs text-slate-500 font-medium uppercase">${dayName}</p>
+        <p class="text-xs text-slate-600 mb-2">${b.date.slice(5)}</p>
+        <input type="number" min="0" value="${b.guests}" id="bk_${b.date}"
+          class="w-full bg-slate-700 border border-slate-600 px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-rose-700" placeholder="0">
+        <button onclick="saveBookingDay('${b.date}')" class="mt-2 w-full text-xs bg-slate-600 hover:bg-slate-500 text-white py-1 border border-slate-500 transition-colors">Spara</button>`;
+      grid.appendChild(div);
+    });
+    checkBookingWarnings(data);
+  } catch(err){ console.error(err); }
+}
+
+async function saveBookingDay(bdate){
+  const el=document.getElementById('bk_'+bdate); if(!el) return;
+  const guests=parseInt(el.value)||0;
+  try {
+    await api('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date:bdate,guests})});
+    showAlert(`Bokning sparad: ${bdate} — ${guests} gäster`,'success');
+    await loadBookings();
+  } catch(err){ showAlert(err.message,'error'); }
+}
+
+function checkBookingWarnings(bookings){
+  const box=document.getElementById('bookingWarnings'); box.innerHTML='';
+  const lowRecipes=_recipes.filter(r=>r.low_stock_warning);
+  if(!lowRecipes.length) return;
+  const totalGuests=bookings.reduce((s,b)=>s+b.guests,0);
+  if(!totalGuests) return;
+  lowRecipes.forEach(r=>{
+    const pa=r.portions_available??0;
+    const div=document.createElement('div');
+    div.className='bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs px-3 py-2';
+    div.textContent=`Varning: "${r.name}" har bara ${pa} portioner i förråd. Totalt ${totalGuests} bokade gäster kommande vecka.`;
+    box.appendChild(div);
+  });
+}
+
+function renderMenuRows(){
+  const container=document.getElementById('menuRows');
+  container.innerHTML='';
+  document.getElementById('menuEmpty').classList.toggle('hidden',_menuItems.length>0);
+  _menuItems.forEach((item,idx)=>{
+    const div=document.createElement('div');
+    div.className='flex gap-2 items-center';
+    const opts=_recipes.map(r=>`<option value="${r.id}"${r.id===item.recipe_id?' selected':''}>${escHtml(r.name)}</option>`).join('');
+    div.innerHTML=`<select onchange="updateMenuItem(${idx},'recipe_id',parseInt(this.value))"
+        class="flex-1 bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+        <option value="">-- Välj rätt --</option>${opts}
+      </select>
+      <input type="number" min="1" value="${item.portions}" placeholder="Portioner"
+        onchange="updateMenuItem(${idx},'portions',parseInt(this.value)||1)"
+        class="w-28 bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+      <span class="text-xs text-slate-500 whitespace-nowrap">portioner</span>
+      <button onclick="removeMenuItem(${idx})" class="text-slate-500 hover:text-red-400 px-1 text-xl leading-none">&times;</button>`;
+    container.appendChild(div);
+  });
+}
+function addMenuRow(){
+  _menuItems.push({recipe_id:_recipes.length?_recipes[0].id:null,portions:10});
+  renderMenuRows();
+  document.getElementById('menuEmpty').classList.add('hidden');
+}
+function updateMenuItem(idx,key,val){_menuItems[idx][key]=val;}
+function removeMenuItem(idx){_menuItems.splice(idx,1);renderMenuRows();}
+function clearMenu(){_menuItems=[];renderMenuRows();document.getElementById('shoppingListSection').classList.add('hidden');}
+
+async function buildShoppingList(){
+  if(!_menuItems.length){showAlert('Lägg till minst en rätt i menyn','error');return;}
+  const items=_menuItems.filter(m=>m.recipe_id&&m.portions>0).map(m=>({recipe_id:m.recipe_id,portions:m.portions}));
+  if(!items.length){showAlert('Välj rätter och ange portioner','error');return;}
+  try {
+    const res=await api('/api/daily-menu/shopping-list',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});
+    const data=await res.json(); if(!res.ok) throw new Error(data.error);
+    _shoppingItems=data;
+    renderShoppingList(data);
+    document.getElementById('shoppingListSection').classList.remove('hidden');
+  } catch(err){ showAlert(err.message,'error'); }
+}
+
+function renderShoppingList(data){
+  const c=document.getElementById('shoppingListTable');
+  if(!data.length){c.innerHTML='<p class="text-slate-600 text-sm text-center py-4">Inga ingredienser att köpa in</p>';return;}
+  // Group by supplier
+  const bySup={};
+  data.forEach(r=>{const k=r.supplier_name||'Okänd leverantör';(bySup[k]=bySup[k]||[]).push(r);});
+  let html='<div class="space-y-4">';
+  Object.entries(bySup).forEach(([sup,rows])=>{
+    html+=`<div><h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">${escHtml(sup)}</h4>
+      <table class="w-full text-xs"><thead><tr class="text-slate-500 border-b border-slate-700">
+        <th class="pb-2 pr-3 text-left font-semibold">Ingrediens</th>
+        <th class="pb-2 pr-3 text-right font-semibold">Behövs</th>
+        <th class="pb-2 pr-3 text-right font-semibold">I förråd</th>
+        <th class="pb-2 text-right font-semibold">Att köpa</th>
+      </tr></thead><tbody class="divide-y divide-slate-700/40">`;
+    rows.forEach(r=>{
+      const stockStr=r.stock!==null?r.stock.toFixed(2):'–';
+      const buyStr=r.to_buy>0?`<span class="text-amber-400 font-semibold">${r.to_buy.toFixed(2)} ${r.unit}</span>`:'<span class="text-emerald-400">OK</span>';
+      html+=`<tr class="${r.ok?'':'bg-amber-500/5'}">
+        <td class="py-2 pr-3 font-medium text-white">${escHtml(r.ingredient)}</td>
+        <td class="py-2 pr-3 text-right text-slate-300">${r.need.toFixed(2)} ${r.unit}</td>
+        <td class="py-2 pr-3 text-right text-slate-400">${stockStr} ${r.stock!==null?r.unit:''}</td>
+        <td class="py-2 text-right">${buyStr}</td></tr>`;
+    });
+    html+='</tbody></table></div>';
+  });
+  html+='</div>';
+  c.innerHTML=html;
+}
+
+async function exportShoppingList(){
+  if(!_shoppingItems.length){showAlert('Ingen inköpslista att exportera','error');return;}
+  const today=new Date().toISOString().slice(0,10);
+  const items=_menuItems.filter(m=>m.recipe_id&&m.portions>0).map(m=>({recipe_id:m.recipe_id,portions:m.portions}));
+  try {
+    const res=await api('/api/daily-menu/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items,date:today})});
+    if(!res.ok){showAlert('Export misslyckades','error');return;}
+    dlBlob(await res.blob(),`inkopslista_${today}.xlsx`);
+    showAlert('Inköpslista exporterad','success');
+  } catch(err){ showAlert(err.message,'error'); }
 }
 
 // ============================================================
@@ -933,14 +1228,14 @@ function openMailto(){
 async function logWaste(){
   const product=document.getElementById('wasteProduct').value;
   const date_=document.getElementById('wasteDate').value;
-  const qty=parseInt(document.getElementById('wasteQty').value,10);
+  const qty=parseFloat(document.getElementById('wasteQty').value);
+  const unit=document.getElementById('wasteUnit').value;
   const reason=document.getElementById('wasteReason').value;
-  if(!product){showAlert('Välj en produkt','error');return;}
-  if(!qty||qty<1){showAlert('Ange antal > 0','error');return;}
+  if(!product){showAlert('Välj en ingrediens','error');return;}
+  if(!qty||qty<=0){showAlert('Ange antal > 0','error');return;}
   try {
-    const res=await api('/api/waste',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product,date:date_,quantity:qty,reason})});
-    const data=await res.json();
-    if(!res.ok) throw new Error(data.error);
+    const res=await api('/api/waste',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product,date:date_,quantity:qty,unit,reason})});
+    const data=await res.json(); if(!res.ok) throw new Error(data.error);
     showAlert(data.message,'success');
     document.getElementById('wasteQty').value='';
     await loadWasteReport();
@@ -951,16 +1246,17 @@ async function loadWasteReport(){
   try {
     const res=await api('/api/waste/report'); const d=await res.json();
     document.getElementById('wasteTotalQty').textContent=d.total_qty||0;
-    document.getElementById('wasteTotalCost').textContent=d.total_cost>0?d.total_cost.toLocaleString('sv-SE',{minimumFractionDigits:2})+'  kr':'0 kr';
+    document.getElementById('wasteTotalCost').textContent=d.total_cost>0?d.total_cost.toLocaleString('sv-SE',{minimumFractionDigits:2})+' kr':'0 kr';
     const topR=d.by_reason[0];
     document.getElementById('wasteTopReason').textContent=topR?topR.reason:'–';
 
-    // Monthly chart
+    // Weekly chart
     if(wasteChartInst) wasteChartInst.destroy();
-    if(d.monthly.length){
+    const chartData=d.weekly.length?d.weekly:d.monthly;
+    if(chartData.length){
       wasteChartInst=new Chart(document.getElementById('wasteChart').getContext('2d'),{
         type:'bar',
-        data:{labels:d.monthly.map(r=>r.month),datasets:[{label:'Svinn (st)',data:d.monthly.map(r=>r.qty),backgroundColor:'rgba(139,92,246,0.5)',borderColor:'rgba(139,92,246,0.8)',borderWidth:1}]},
+        data:{labels:chartData.map(r=>r.week||r.month),datasets:[{label:'Svinn',data:chartData.map(r=>r.qty),backgroundColor:'rgba(190,18,60,0.4)',borderColor:'rgba(190,18,60,0.7)',borderWidth:1}]},
         options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
           scales:{x:{ticks:{color:'#475569',font:{size:10}},grid:{color:'rgba(71,85,105,0.15)'}},
                   y:{ticks:{color:'#475569',font:{size:11}},grid:{color:'rgba(71,85,105,0.15)'},beginAtZero:true}}}
@@ -969,44 +1265,48 @@ async function loadWasteReport(){
 
     // Product table
     const tc=document.getElementById('wasteTableContainer');
-    if(!d.products.length){tc.innerHTML='<p class="text-slate-600 text-sm text-center py-4">Inga svinnposter ännu</p>';return;}
-    tc.innerHTML=`<table class="w-full text-xs">
+    if(!d.products.length){tc.innerHTML='<p class="text-slate-600 text-sm text-center py-4">Inga svinnposter ännu</p>';}
+    else tc.innerHTML=`<table class="w-full text-xs">
       <thead><tr class="text-slate-500 text-xs uppercase tracking-wider border-b border-slate-700">
-        <th class="pb-2 pr-3 font-semibold text-left">Produkt</th>
-        <th class="pb-2 pr-3 font-semibold text-right">Svinn</th>
-        <th class="pb-2 pr-3 font-semibold text-right">Kostnad</th>
-        <th class="pb-2 font-semibold text-right">% av försäljning</th>
-      </tr></thead>
-      <tbody class="divide-y divide-slate-700/40">
+        <th class="pb-2 pr-3 text-left font-semibold">Ingrediens</th>
+        <th class="pb-2 pr-3 text-right font-semibold">Svinn</th>
+        <th class="pb-2 pr-3 text-right font-semibold">Kostnad</th>
+        <th class="pb-2 text-right font-semibold">% av förbrukn.</th>
+      </tr></thead><tbody class="divide-y divide-slate-700/40">
         ${d.products.map((p,i)=>`<tr class="${i%2?'bg-slate-700/10':''}">
           <td class="py-2 pr-3 font-medium text-white">${escHtml(p.product)}</td>
-          <td class="py-2 pr-3 text-right text-slate-300">${p.waste_qty} st</td>
+          <td class="py-2 pr-3 text-right text-slate-300">${p.waste_qty}</td>
           <td class="py-2 pr-3 text-right text-slate-300">${p.waste_cost>0?p.waste_cost.toFixed(2)+' kr':'–'}</td>
           <td class="py-2 text-right ${p.waste_pct!=null&&p.waste_pct>5?'text-red-400':'text-slate-300'}">${p.waste_pct!=null?p.waste_pct+'%':'–'}</td>
         </tr>`).join('')}
       </tbody></table>`;
+
+    // Recommendations
+    const recoBox=document.getElementById('wasteRecoBox');
+    const recoList=document.getElementById('wasteRecoList');
+    if(d.recommendations&&d.recommendations.length){
+      recoList.innerHTML=d.recommendations.map(r=>`<li>• ${escHtml(r)}</li>`).join('');
+      recoBox.classList.remove('hidden');
+    } else { recoBox.classList.add('hidden'); }
   } catch(err){ console.error(err); }
 }
-
 async function exportWaste(){
-  try {
-    const res=await api('/api/waste/export'); if(!res.ok){showAlert('Export misslyckades','error');return;}
+  try { const res=await api('/api/waste/export'); if(!res.ok){showAlert('Export misslyckades','error');return;}
     dlBlob(await res.blob(),`svinnrapport_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.xlsx`);
-    showAlert('Svinnrapport exporterad','success');
-  } catch(err){ showAlert(err.message,'error'); }
+    showAlert('Svinnrapport exporterad','success'); } catch(err){ showAlert(err.message,'error'); }
 }
 
 // ============================================================
-// Expiry table
+// Expiry
 // ============================================================
 async function loadExpiryTable(){
   const c=document.getElementById('expiryContainer');
   try {
     const data=await (await api('/api/expiry')).json();
-    if(!data.length){c.innerHTML='<p class="text-slate-600 text-sm text-center py-6">Inga produkter med utgångsdatum inom 7 dagar</p>';return;}
+    if(!data.length){c.innerHTML='<p class="text-slate-600 text-sm text-center py-6">Inga ingredienser med utgångsdatum inom 7 dagar</p>';return;}
     c.innerHTML=`<div class="overflow-x-auto"><table class="w-full text-sm">
       <thead><tr class="text-slate-500 text-xs uppercase tracking-wider text-left border-b border-slate-700">
-        <th class="pb-3 pr-4 font-semibold">Produkt</th><th class="pb-3 pr-4 font-semibold">Utgångsdatum</th>
+        <th class="pb-3 pr-4 font-semibold">Ingrediens</th><th class="pb-3 pr-4 font-semibold">Utgångsdatum</th>
         <th class="pb-3 pr-4 font-semibold text-right">Dagar kvar</th><th class="pb-3 pr-4 font-semibold text-right">Antal</th><th class="pb-3 font-semibold">Status</th>
       </tr></thead><tbody id="expiryTbody" class="divide-y divide-slate-700/40"></tbody></table></div>`;
     const tbody=document.getElementById('expiryTbody');
@@ -1025,19 +1325,19 @@ async function loadExpiryTable(){
 }
 
 // ============================================================
-// Stock table
+// Stock / Förråd
 // ============================================================
 async function loadStockTable(){
   const c=document.getElementById('stockContainer');
   try {
     const[prodData,supData]=await Promise.all([(await api('/api/products')).json(),(await api('/api/suppliers')).json()]);
-    _suppliers=supData;
-    if(!prodData.length){c.innerHTML='<p class="text-slate-600 text-sm text-center py-6">Inga produkter.</p>';return;}
+    _suppliers=supData; _products=prodData;
+    if(!prodData.length){c.innerHTML='<p class="text-slate-600 text-sm text-center py-6">Inga ingredienser.</p>';return;}
     c.innerHTML=`<div class="overflow-x-auto"><table class="w-full text-sm">
       <thead><tr class="text-slate-500 text-xs uppercase tracking-wider text-left border-b border-slate-700">
-        <th class="pb-3 pr-4 font-semibold">Produkt</th>
-        <th class="pb-3 pr-4 font-semibold text-right">Lagersaldo</th>
-        <th class="pb-3 pr-4 font-semibold text-right">Pris (kr)</th>
+        <th class="pb-3 pr-4 font-semibold">Ingrediens</th>
+        <th class="pb-3 pr-4 font-semibold text-right">Förrådsaldo</th>
+        <th class="pb-3 pr-4 font-semibold text-right">Inköpspris (kr)</th>
         <th class="pb-3 pr-4 font-semibold">Leverantör</th>
         <th class="pb-3 font-semibold text-right">Ändra och spara</th>
       </tr></thead><tbody id="stockTbody" class="divide-y divide-slate-700/40"></tbody></table></div>`;
@@ -1059,16 +1359,16 @@ async function loadStockTable(){
         <td class="py-3 pr-4 text-right">${stockBadge}</td>
         <td class="py-3 pr-4 text-right">
           <input type="number" id="${pid}" value="${p.price||''}" min="0" step="0.01" placeholder="0.00"
-            class="w-20 bg-slate-700 border border-slate-600 px-2 py-1 text-white text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-600">
+            class="w-20 bg-slate-700 border border-slate-600 px-2 py-1 text-white text-xs text-right focus:outline-none focus:ring-1 focus:ring-rose-700">
         </td>
         <td class="py-3 pr-4">
           <select id="${tid}" onchange="updateProductSupplier('${p.name.replace(/'/g,"\\'")}')"
-            class="bg-slate-700 border border-slate-600 px-2 py-1 text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-600">${supOpts}</select>
+            class="bg-slate-700 border border-slate-600 px-2 py-1 text-white text-xs focus:outline-none focus:ring-1 focus:ring-rose-700">${supOpts}</select>
         </td>
         <td class="py-3 text-right">
           <div class="inline-flex items-center gap-2">
-            <input type="number" id="${sid}" value="${p.stock_initialized?p.stock:''}" min="0" placeholder="${p.stock_initialized?'':'Ange lager'}"
-              class="w-20 bg-slate-700 border border-slate-600 px-2 py-1 text-white text-sm text-right focus:outline-none focus:ring-1 focus:ring-blue-600">
+            <input type="number" id="${sid}" value="${p.stock_initialized?p.stock:''}" min="0" step="0.001" placeholder="${p.stock_initialized?'':'Ange mängd'}"
+              class="w-24 bg-slate-700 border border-slate-600 px-2 py-1 text-white text-sm text-right focus:outline-none focus:ring-1 focus:ring-rose-700">
             <button onclick="saveStock('${p.name.replace(/'/g,"\\'")}')" class="text-xs bg-slate-600 hover:bg-slate-500 text-white px-3 py-1 border border-slate-500 transition-colors whitespace-nowrap">Spara</button>
           </div>
         </td>`;
@@ -1076,24 +1376,22 @@ async function loadStockTable(){
     });
   } catch(err){ c.innerHTML=`<p class="text-red-400 text-sm text-center py-8">Fel: ${escHtml(err.message)}</p>`; }
 }
-
 async function saveStock(name){
   const sid='si_'+name.replace(/[^a-zA-Z0-9_-]/g,'_');
   const pid='pr_'+name.replace(/[^a-zA-Z0-9_-]/g,'_');
   const stockInput=document.getElementById(sid); const priceInput=document.getElementById(pid);
   if(!stockInput) return;
-  const stock=parseInt(stockInput.value,10); const price=parseFloat(priceInput?.value||0);
-  if(isNaN(stock)||stock<0){showAlert('Ogiltigt lagervärde','error');return;}
+  const stock=parseFloat(stockInput.value); const price=parseFloat(priceInput?.value||0);
+  if(isNaN(stock)||stock<0){showAlert('Ogiltigt förrådsvalue','error');return;}
   try {
     await Promise.all([
       api(`/api/stock/${encodeURIComponent(name)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({stock})}),
       !isNaN(price)&&api(`/api/products/${encodeURIComponent(name)}/price`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({price})})
     ].filter(Boolean));
-    showAlert(`Lager uppdaterat: ${name} — ${stock} st`,'success');
+    showAlert(`Förråd uppdaterat: ${name} — ${stock}`,'success');
     await loadDashboard();
   } catch(err){ showAlert(err.message,'error'); }
 }
-
 async function updateProductSupplier(name){
   const tid='sup_'+name.replace(/[^a-zA-Z0-9_-]/g,'_');
   const sel=document.getElementById(tid); if(!sel) return;
@@ -1113,7 +1411,7 @@ async function exportRecommendations(){
   btn.textContent='Förbereder...'; btn.disabled=true;
   try {
     const res=await api(`/api/export?days=${days}`); if(!res.ok){showAlert('Export misslyckades','error');return;}
-    dlBlob(await res.blob(),`bestallningslista_${new Date().toISOString().slice(0,10).replace(/-/g,'')}_${days}d.xlsx`);
+    dlBlob(await res.blob(),`inkopsrekommendationer_${new Date().toISOString().slice(0,10).replace(/-/g,'')}_${days}d.xlsx`);
     showAlert(`Excel exporterad (${days}-dagarsprognos)`,'success');
   } catch(err){ showAlert(err.message,'error'); }
   finally{ btn.textContent=orig; btn.disabled=false; }
@@ -1132,7 +1430,7 @@ function showAlert(msg,type){
 function statusBadge(s){return{urgent:'bg-red-500/15 text-red-400 border-red-500/30',soon:'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',plan:'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',unknown:'bg-slate-500/15 text-slate-400 border-slate-500/30'}[s]||'bg-slate-500/15 text-slate-400 border-slate-500/30';}
 function statusDotColor(s){return{urgent:'bg-red-500',soon:'bg-yellow-400',plan:'bg-emerald-500',unknown:'bg-slate-500'}[s]||'bg-slate-500';}
 function statusColor(s){return{urgent:'text-red-400',soon:'text-yellow-400',plan:'text-emerald-400',unknown:'text-slate-400'}[s]||'text-slate-400';}
-function statusLabel(s){return{urgent:'Bradskande',soon:'Snart',plan:'Planera',unknown:'Lager okant'}[s]||s;}
+function statusLabel(s){return{urgent:'Bradskande',soon:'Snart',plan:'Planera',unknown:'Okant'}[s]||s;}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 </script>
 </body>

@@ -1,5 +1,6 @@
 import hashlib
 import json
+import math
 import os
 import secrets
 from datetime import date, datetime, timedelta
@@ -64,11 +65,13 @@ def _norm(s: str) -> str:
 
 
 _FIELD_PATTERNS: dict[str, set[str]] = {
-    "vara":         {"vara","produkt","product","item","artikel","name","namn","benaming","beteckning","varunamn","produktnamn","productname","itemname"},
-    "datum":        {"datum","date","dag","tid","time","forsaljningsdatum","saledate","transaktionsdatum","salesdate","salesdatum","orderdate","orderdatum"},
-    "antal":        {"antal","quantity","qty","amount","forsaljning","sold","salda","volym","volume","stycken","saldaenheter","quantitysold","numberofunits","units","enheter"},
-    "lager":        {"lager","stock","saldo","lagerantal","inventory","balance","behallning","lagersaldo","stocklevel","currentstock","stockbalance","stockqty"},
-    "utgangsdatum": {"utgangsdatum","expiry","expirydate","bestbefore","bastfore","utgar","expiration","expirationdate","bbdate","bestbeforedate","bbd","sellby","sellbydate"},
+    "vara":         {"vara","produkt","product","item","artikel","name","namn","ingrediens","ingredient"},
+    "datum":        {"datum","date","dag","tid","time","forsaljningsdatum","saledate"},
+    "antal":        {"antal","quantity","qty","amount","forsaljning","sold","salda","volym","portioner"},
+    "lager":        {"lager","stock","saldo","lagerantal","inventory","balance","lagersaldo","forradsaldo","forrad"},
+    "utgangsdatum": {"utgangsdatum","expiry","expirydate","bestbefore","utgar","expiration","bbdate"},
+    "ratt":         {"ratt","dish","recipe","recept","matratt","retter"},
+    "portioner":    {"portioner","portions","servings","antal_portioner","portionsantal"},
 }
 
 
@@ -124,7 +127,6 @@ def get_dashboard():
 
     total_products = conn.execute("SELECT COUNT(*) FROM products").fetchone()[0]
 
-    # Urgent: stock < 3-day rolling average (SQL approximation, no Prophet needed)
     urgent_count = conn.execute("""
         SELECT COUNT(*) FROM products p
         WHERE p.stock_initialized = 1
@@ -148,6 +150,24 @@ def get_dashboard():
         (thirty_ago,)
     ).fetchall()
 
+    # Recipe portions warning count
+    recipes = conn.execute("SELECT id FROM recipes").fetchall()
+    low_portions = 0
+    for rec in recipes:
+        ingrs = conn.execute("""
+            SELECT ri.quantity, p.current_stock, p.stock_initialized
+            FROM recipe_ingredients ri JOIN products p ON ri.product_id=p.id
+            WHERE ri.recipe_id=?
+        """, (rec["id"],)).fetchall()
+        if not ingrs: continue
+        if not all(i["stock_initialized"] for i in ingrs): continue
+        max_p = min(
+            math.floor(i["current_stock"] / i["quantity"]) if i["quantity"] > 0 else 9999
+            for i in ingrs
+        )
+        if max_p < 10:
+            low_portions += 1
+
     conn.close()
     return jsonify({
         "total_products":      total_products,
@@ -155,6 +175,7 @@ def get_dashboard():
         "expiring_soon_count": expiring_count,
         "recent_sales_7d":     int(recent_sales),
         "daily_sales_30d":     [{"date": r["date"], "total": r["total"]} for r in daily_rows],
+        "low_portions_count":  low_portions,
     })
 
 
@@ -263,8 +284,7 @@ def update_supplier(supplier_id):
         (body.get("name",""), body.get("contact_person",""), body.get("email",""), body.get("phone",""),
          int(body.get("lead_time_days",3)), int(body.get("min_order_qty",1)), supplier_id)
     )
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
     return jsonify({"success": True})
 
 
@@ -274,8 +294,7 @@ def delete_supplier(supplier_id):
     conn = get_connection()
     conn.execute("UPDATE products SET supplier_id=NULL WHERE supplier_id=?", (supplier_id,))
     conn.execute("DELETE FROM suppliers WHERE id=?", (supplier_id,))
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
     return jsonify({"success": True})
 
 
@@ -283,11 +302,10 @@ def delete_supplier(supplier_id):
 @require_auth
 def set_product_supplier(product_name):
     body        = request.get_json(silent=True) or {}
-    supplier_id = body.get("supplier_id")  # None = unlink
+    supplier_id = body.get("supplier_id")
     conn        = get_connection()
     conn.execute("UPDATE products SET supplier_id=? WHERE name=?", (supplier_id, product_name))
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
     return jsonify({"success": True})
 
 
@@ -301,8 +319,7 @@ def set_product_price(product_name):
         return jsonify({"error": "Ogiltigt pris"}), 400
     conn = get_connection()
     conn.execute("UPDATE products SET price=? WHERE name=?", (price, product_name))
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
     return jsonify({"success": True})
 
 
@@ -331,14 +348,14 @@ def order_email(supplier_id):
     today_str = date.today().strftime("%Y-%m-%d")
 
     if order_lines:
-        lines = "\n".join(f"  - {ol['product']}: {ol['order_quantity']} st" for ol in order_lines)
+        lines = "\n".join(f"  - {ol['product']}: {ol['order_quantity']}" for ol in order_lines)
     else:
-        lines = "  (inga produkter behöver beställas just nu)"
+        lines = "  (inga ingredienser behöver beställas just nu)"
 
-    subject  = f"Beställning {today_str} – {supplier['name']}"
+    subject  = f"Inköpsorder {today_str} – {supplier['name']}"
     body_txt = (
         f"Hej {contact},\n\n"
-        f"Vi önskar göra följande beställning:\n\n"
+        f"Vi önskar göra följande inköpsorder:\n\n"
         f"{lines}\n\n"
         f"Vänligen bekräfta ordern och beräknat leveransdatum.\n\n"
         f"Med vänliga hälsningar"
@@ -352,6 +369,428 @@ def order_email(supplier_id):
         "order_lines": order_lines,
         "has_orders":  len(order_lines) > 0,
     })
+
+
+# ─────────────────────────────────────────
+# Recipe management
+# ─────────────────────────────────────────
+
+def _recipe_portions_available(recipe_id: int, conn) -> int | None:
+    """Calculate max portions from current stock. Returns None if stock not initialized."""
+    ingrs = conn.execute("""
+        SELECT ri.quantity, p.current_stock, p.stock_initialized, p.name
+        FROM recipe_ingredients ri JOIN products p ON ri.product_id=p.id
+        WHERE ri.recipe_id=?
+    """, (recipe_id,)).fetchall()
+    if not ingrs:
+        return 0
+    if not all(i["stock_initialized"] for i in ingrs):
+        return None
+    portions = min(
+        math.floor(i["current_stock"] / i["quantity"]) if i["quantity"] > 0 else 99999
+        for i in ingrs
+    )
+    return max(0, portions)
+
+
+@app.get("/api/recipes")
+@require_auth
+def get_recipes():
+    conn = get_connection()
+    recipes = conn.execute("SELECT * FROM recipes ORDER BY name").fetchall()
+    result = []
+    for r in recipes:
+        ingrs = conn.execute("""
+            SELECT ri.id, ri.quantity, ri.unit, p.name as ingredient, p.id as product_id,
+                   p.current_stock, p.stock_initialized
+            FROM recipe_ingredients ri JOIN products p ON ri.product_id=p.id
+            WHERE ri.recipe_id=? ORDER BY p.name
+        """, (r["id"],)).fetchall()
+        portions_available = _recipe_portions_available(r["id"], conn)
+        result.append({
+            "id":                 r["id"],
+            "name":               r["name"],
+            "portions":           r["portions"],
+            "portions_available": portions_available,
+            "low_stock_warning":  (portions_available is not None and portions_available < 10),
+            "ingredients": [{
+                "id":          i["id"],
+                "ingredient":  i["ingredient"],
+                "product_id":  i["product_id"],
+                "quantity":    i["quantity"],
+                "unit":        i["unit"],
+                "stock":       i["current_stock"],
+                "initialized": bool(i["stock_initialized"]),
+            } for i in ingrs],
+        })
+    conn.close()
+    return jsonify(result)
+
+
+@app.post("/api/recipes")
+@require_auth
+def create_recipe():
+    body = request.get_json(silent=True) or {}
+    name = body.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "Namn krävs"}), 400
+    portions = int(body.get("portions", 1))
+    ingredients = body.get("ingredients", [])  # [{product_id, quantity, unit}]
+
+    conn = get_connection()
+    try:
+        conn.execute("INSERT INTO recipes (name, portions) VALUES (?,?)", (name, portions))
+        recipe_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        for ing in ingredients:
+            pid = ing.get("product_id")
+            qty = float(ing.get("quantity", 0))
+            unit = ing.get("unit", "st")
+            if pid and qty > 0:
+                conn.execute(
+                    "INSERT INTO recipe_ingredients (recipe_id,product_id,quantity,unit) VALUES (?,?,?,?)",
+                    (recipe_id, pid, qty, unit)
+                )
+        conn.commit(); conn.close()
+        return jsonify({"success": True, "id": recipe_id})
+    except Exception as exc:
+        conn.close()
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.put("/api/recipes/<int:recipe_id>")
+@require_auth
+def update_recipe(recipe_id):
+    body = request.get_json(silent=True) or {}
+    name = body.get("name", "").strip()
+    portions = int(body.get("portions", 1))
+    ingredients = body.get("ingredients", [])
+
+    conn = get_connection()
+    try:
+        conn.execute("UPDATE recipes SET name=?, portions=? WHERE id=?", (name, portions, recipe_id))
+        conn.execute("DELETE FROM recipe_ingredients WHERE recipe_id=?", (recipe_id,))
+        for ing in ingredients:
+            pid = ing.get("product_id")
+            qty = float(ing.get("quantity", 0))
+            unit = ing.get("unit", "st")
+            if pid and qty > 0:
+                conn.execute(
+                    "INSERT INTO recipe_ingredients (recipe_id,product_id,quantity,unit) VALUES (?,?,?,?)",
+                    (recipe_id, pid, qty, unit)
+                )
+        conn.commit(); conn.close()
+        return jsonify({"success": True})
+    except Exception as exc:
+        conn.close()
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.delete("/api/recipes/<int:recipe_id>")
+@require_auth
+def delete_recipe(recipe_id):
+    conn = get_connection()
+    conn.execute("DELETE FROM recipe_ingredients WHERE recipe_id=?", (recipe_id,))
+    conn.execute("DELETE FROM recipes WHERE id=?", (recipe_id,))
+    conn.commit(); conn.close()
+    return jsonify({"success": True})
+
+
+@app.get("/api/recipes/<int:recipe_id>/portions")
+@require_auth
+def recipe_portions(recipe_id):
+    conn = get_connection()
+    recipe = conn.execute("SELECT * FROM recipes WHERE id=?", (recipe_id,)).fetchone()
+    if not recipe:
+        conn.close()
+        return jsonify({"error": "Recept hittades inte"}), 404
+    portions = _recipe_portions_available(recipe_id, conn)
+    conn.close()
+    return jsonify({"recipe_id": recipe_id, "portions_available": portions})
+
+
+# ─────────────────────────────────────────
+# Dish sales upload (portions → ingredients)
+# ─────────────────────────────────────────
+
+@app.post("/api/upload-dish-sales")
+@require_auth
+def upload_dish_sales():
+    if "file" not in request.files:
+        return jsonify({"error": "Ingen fil uppladdad"}), 400
+    f    = request.files["file"]
+    name = (f.filename or "").lower()
+    try:
+        if name.endswith(".csv"):
+            df = pd.read_csv(f, encoding="utf-8-sig")
+        elif name.endswith((".xlsx", ".xls")):
+            df = pd.read_excel(f)
+        else:
+            return jsonify({"error": "Stödjer bara CSV och Excel"}), 400
+
+        df.columns = df.columns.str.strip()
+        df.rename(columns=lambda c: c.lower().strip(), inplace=True)
+        col_map = {k: v.lower().strip() for k, v in
+                   json.loads(request.form.get("column_map","{}") or "{}").items() if v}
+
+        RATT     = {"rätt","ratt","recept","dish","recipe","matratt"}
+        DATUM    = {"datum","date","dag","tid"}
+        PORTIONER= {"portioner","portions","antal_portioner","antal","qty","quantity"}
+
+        col_ratt  = _resolve_col(list(df.columns), col_map, "ratt",     RATT)
+        col_datum = _resolve_col(list(df.columns), col_map, "datum",    DATUM)
+        col_port  = _resolve_col(list(df.columns), col_map, "portioner",PORTIONER)
+
+        missing = [n for n,c in [("rätt",col_ratt),("datum",col_datum),("portioner",col_port)] if not c]
+        if missing:
+            return jsonify({"error": f"Saknar kolumn(er): {', '.join(missing)}"}), 400
+
+        conn = get_connection()
+        inserted_dish = 0
+        inserted_ingr = 0
+        skipped       = []
+
+        for _, row in df.iterrows():
+            try:
+                rname = str(row[col_ratt]).strip()
+                dval  = str(row[col_datum]).strip()
+                port  = int(float(str(row[col_port])))
+                if not rname or rname == "nan" or port <= 0: continue
+            except (ValueError, TypeError):
+                continue
+
+            recipe = conn.execute("SELECT id FROM recipes WHERE name=?", (rname,)).fetchone()
+            if not recipe:
+                if rname not in skipped: skipped.append(rname)
+                continue
+
+            conn.execute(
+                "INSERT INTO dish_sales (recipe_id, date, portions) VALUES (?,?,?)",
+                (recipe["id"], dval, port)
+            )
+            inserted_dish += 1
+
+            # Convert to ingredient sales
+            ingrs = conn.execute("""
+                SELECT ri.product_id, ri.quantity
+                FROM recipe_ingredients ri WHERE ri.recipe_id=?
+            """, (recipe["id"],)).fetchall()
+
+            for ing in ingrs:
+                usage = ing["quantity"] * port
+                conn.execute(
+                    "INSERT INTO sales (product_id, date, quantity) VALUES (?,?,?)",
+                    (ing["product_id"], dval, usage)
+                )
+                # Update stock if initialized
+                prod = conn.execute(
+                    "SELECT id, current_stock, stock_initialized, stock_sync_date FROM products WHERE id=?",
+                    (ing["product_id"],)
+                ).fetchone()
+                if prod and prod["stock_initialized"]:
+                    sync = prod["stock_sync_date"] or ""
+                    if dval > sync:
+                        new_stock = max(0, prod["current_stock"] - usage)
+                        conn.execute(
+                            "UPDATE products SET current_stock=?, stock_sync_date=?, stock_updated_at=? WHERE id=?",
+                            (new_stock, dval, datetime.now().isoformat(), prod["id"])
+                        )
+                inserted_ingr += 1
+
+        conn.commit(); conn.close()
+        msg = f"Laddade upp {inserted_dish} rätt-försäljningsposter → {inserted_ingr} ingrediensrader"
+        if skipped: msg += f". Okända rätter: {', '.join(skipped)}"
+        return jsonify({"success": True, "message": msg})
+    except Exception as exc:
+        return jsonify({"error": f"Fel: {exc}"}), 500
+
+
+# ─────────────────────────────────────────
+# Bookings
+# ─────────────────────────────────────────
+
+@app.get("/api/bookings")
+@require_auth
+def get_bookings():
+    today   = date.today()
+    in7_iso = (today + timedelta(days=7)).isoformat()
+    conn    = get_connection()
+    rows    = conn.execute(
+        "SELECT date, guests FROM bookings WHERE date>=? AND date<=? ORDER BY date",
+        (today.isoformat(), in7_iso)
+    ).fetchall()
+    conn.close()
+    # Fill in all 7 days even if no booking
+    result = []
+    for i in range(8):
+        d = (today + timedelta(days=i)).isoformat()
+        match = next((r for r in rows if r["date"] == d), None)
+        result.append({"date": d, "guests": match["guests"] if match else 0})
+    return jsonify(result)
+
+
+@app.post("/api/bookings")
+@require_auth
+def set_booking():
+    body   = request.get_json(silent=True) or {}
+    bdate  = body.get("date", "")
+    guests = int(body.get("guests", 0))
+    if not bdate:
+        return jsonify({"error": "Datum krävs"}), 400
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO bookings (date, guests) VALUES (?,?) ON CONFLICT(date) DO UPDATE SET guests=excluded.guests",
+        (bdate, guests)
+    )
+    conn.commit(); conn.close()
+    return jsonify({"success": True})
+
+
+# ─────────────────────────────────────────
+# Daily menu & shopping list
+# ─────────────────────────────────────────
+
+@app.post("/api/daily-menu/shopping-list")
+@require_auth
+def shopping_list():
+    """
+    Body: {"items": [{"recipe_id": 1, "portions": 20}, ...]}
+    Returns ingredient needs vs stock with per-supplier grouping.
+    """
+    body  = request.get_json(silent=True) or {}
+    items = body.get("items", [])  # [{recipe_id, portions}]
+    if not items:
+        return jsonify({"error": "Inga rätter i menyn"}), 400
+
+    conn = get_connection()
+    # Aggregate ingredient needs
+    needs: dict[int, dict] = {}  # product_id → {name, need, stock, unit, supplier_id, supplier_name}
+
+    for item in items:
+        rid   = item.get("recipe_id")
+        port  = float(item.get("portions", 0))
+        if not rid or port <= 0: continue
+
+        ingrs = conn.execute("""
+            SELECT ri.product_id, ri.quantity, ri.unit,
+                   p.name, p.current_stock, p.stock_initialized,
+                   p.supplier_id, s.name as supplier_name
+            FROM recipe_ingredients ri
+            JOIN products p ON ri.product_id=p.id
+            LEFT JOIN suppliers s ON p.supplier_id=s.id
+            WHERE ri.recipe_id=?
+        """, (rid,)).fetchall()
+
+        for ing in ingrs:
+            pid = ing["product_id"]
+            usage = ing["quantity"] * port
+            if pid not in needs:
+                needs[pid] = {
+                    "product_id":    pid,
+                    "ingredient":    ing["name"],
+                    "unit":          ing["unit"],
+                    "need":          0.0,
+                    "stock":         ing["current_stock"] if ing["stock_initialized"] else None,
+                    "supplier_id":   ing["supplier_id"],
+                    "supplier_name": ing["supplier_name"] or "Okänd",
+                }
+            needs[pid]["need"] += usage
+
+    result = []
+    for pid, row in needs.items():
+        stock = row["stock"]
+        need  = row["need"]
+        to_buy = round(max(0, need - stock), 3) if stock is not None else need
+        result.append({
+            **row,
+            "need":    round(need, 3),
+            "to_buy":  to_buy,
+            "ok":      (stock is not None and stock >= need),
+        })
+
+    # Sort by supplier then ingredient name
+    result.sort(key=lambda x: (x["supplier_name"] or "", x["ingredient"]))
+    conn.close()
+    return jsonify(result)
+
+
+@app.post("/api/daily-menu/export")
+@require_auth
+def shopping_list_export():
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    body  = request.get_json(silent=True) or {}
+    items = body.get("items", [])
+    menu_date = body.get("date", date.today().isoformat())
+
+    conn = get_connection()
+    needs: dict[int, dict] = {}
+    for item in items:
+        rid  = item.get("recipe_id")
+        port = float(item.get("portions", 0))
+        if not rid or port <= 0: continue
+        ingrs = conn.execute("""
+            SELECT ri.product_id, ri.quantity, ri.unit,
+                   p.name, p.current_stock, p.stock_initialized,
+                   p.supplier_id, s.name as supplier_name
+            FROM recipe_ingredients ri
+            JOIN products p ON ri.product_id=p.id
+            LEFT JOIN suppliers s ON p.supplier_id=s.id
+            WHERE ri.recipe_id=?
+        """, (rid,)).fetchall()
+        for ing in ingrs:
+            pid = ing["product_id"]
+            if pid not in needs:
+                needs[pid] = {"ingredient": ing["name"], "unit": ing["unit"], "need": 0.0,
+                              "stock": ing["current_stock"] if ing["stock_initialized"] else None,
+                              "supplier_name": ing["supplier_name"] or "Okänd leverantör"}
+            needs[pid]["need"] += ing["quantity"] * port
+
+    rows = []
+    for row in sorted(needs.values(), key=lambda x: (x["supplier_name"], x["ingredient"])):
+        stock = row["stock"]
+        need  = row["need"]
+        to_buy = round(max(0, need - (stock or 0)), 3)
+        rows.append({
+            "Leverantör":  row["supplier_name"],
+            "Ingrediens":  row["ingredient"],
+            "Behövs":      round(need, 3),
+            "I förråd":    round(stock, 3) if stock is not None else "Ej angivet",
+            "Att köpa":    to_buy,
+            "Enhet":       row["unit"],
+        })
+    conn.close()
+
+    wb = Workbook(); ws = wb.active; ws.title = "Inköpslista"
+    ws.append([f"Inköpslista — {menu_date}"])
+    ws.cell(1,1).font = Font(bold=True, size=13)
+    ws.append([])
+
+    headers = ["Leverantör","Ingrediens","Behövs","I förråd","Att köpa","Enhet"]
+    widths  = [22, 24, 12, 12, 12, 10]
+    for ci,(h,w) in enumerate(zip(headers,widths),1):
+        cell = ws.cell(row=3, column=ci, value=h)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="7C2D12")
+        cell.alignment = Alignment(horizontal="center")
+        ws.column_dimensions[cell.column_letter].width = w
+
+    for ri, row in enumerate(rows, 4):
+        vals = [row[h] for h in headers]
+        for ci, val in enumerate(vals, 1):
+            cell = ws.cell(row=ri, column=ci, value=val)
+            cell.alignment = Alignment(horizontal="left" if ci <= 2 else "center")
+            if row["Att köpa"] and row["Att köpa"] != "Ej angivet":
+                try:
+                    if float(str(row["Att köpa"])) > 0:
+                        cell.fill = PatternFill("solid", fgColor="FEF3C7")
+                except (ValueError, TypeError):
+                    pass
+
+    buf = BytesIO(); wb.save(buf); buf.seek(0)
+    return send_file(buf, as_attachment=True,
+                     download_name=f"inkopslista_{menu_date}.xlsx",
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 # ─────────────────────────────────────────
@@ -378,7 +817,7 @@ def upload():
         col_map = {k: v.lower().strip() for k, v in
                    json.loads(request.form.get("column_map","{}") or "{}").items() if v}
 
-        VARA  = {"vara","produkt","product","item","artikel"}
+        VARA  = {"vara","produkt","product","item","artikel","ingrediens","ingredient"}
         DATUM = {"datum","date","dag","tid"}
         ANTAL = {"antal","quantity","qty","amount","försäljning","sold"}
 
@@ -386,7 +825,7 @@ def upload():
         col_datum = _resolve_col(list(df.columns), col_map, "datum", DATUM)
         col_antal = _resolve_col(list(df.columns), col_map, "antal", ANTAL)
 
-        missing = [n for n,c in [("vara",col_vara),("datum",col_datum),("antal",col_antal)] if not c]
+        missing = [n for n,c in [("ingrediens",col_vara),("datum",col_datum),("antal",col_antal)] if not c]
         if missing:
             return jsonify({"error": f"Kunde inte hitta kolumn(er): {', '.join(missing)}"}), 400
 
@@ -395,7 +834,7 @@ def upload():
             try:
                 pname = str(row[col_vara]).strip()
                 dval  = str(row[col_datum]).strip()
-                qty   = int(float(str(row[col_antal])))
+                qty   = float(str(row[col_antal]))
                 if not pname or pname=="nan": continue
                 upload_map.setdefault(pname,[]).append((dval, qty))
             except (ValueError, TypeError):
@@ -432,7 +871,7 @@ def upload():
 
         conn.commit(); conn.close()
         msg = f"Laddade upp {inserted} försäljningsposter"
-        if auto_deducted: msg += f". Lager minskat: {', '.join(auto_deducted)}"
+        if auto_deducted: msg += f". Förråd minskat: {', '.join(auto_deducted)}"
         return jsonify({"success":True,"message":msg,"products":list(upload_map.keys())})
     except Exception as exc:
         return jsonify({"error": f"Fel: {exc}"}), 500
@@ -447,7 +886,7 @@ def upload():
 def get_products():
     conn = get_connection()
     rows = conn.execute("""
-        SELECT p.name, p.current_stock, p.stock_initialized, p.stock_updated_at,
+        SELECT p.name, p.current_stock, p.unit, p.stock_initialized, p.stock_updated_at,
                p.price, p.supplier_id, s.name as supplier_name
         FROM products p LEFT JOIN suppliers s ON p.supplier_id=s.id
         ORDER BY p.name
@@ -456,6 +895,7 @@ def get_products():
     return jsonify([{
         "name":              r["name"],
         "stock":             r["current_stock"],
+        "unit":              r["unit"],
         "stock_initialized": bool(r["stock_initialized"]),
         "stock_updated_at":  r["stock_updated_at"],
         "price":             r["price"],
@@ -516,7 +956,6 @@ def recommendations():
 
         lead = prod["lead_time_days"] or 3
 
-        # Override status using supplier lead time
         if not data["stock_initialized"]:
             status = "unknown"
         elif data["days_stock"] is not None:
@@ -554,7 +993,7 @@ def recommendations():
 
 
 # ─────────────────────────────────────────
-# Stock management
+# Stock / förråd management
 # ─────────────────────────────────────────
 
 @app.put("/api/stock/<product_name>")
@@ -562,9 +1001,9 @@ def recommendations():
 def update_stock(product_name):
     body = request.get_json(silent=True) or {}
     try:
-        stock = int(body.get("stock", 0))
+        stock = float(body.get("stock", 0))
     except (ValueError, TypeError):
-        return jsonify({"error": "Ogiltigt lagervärde"}), 400
+        return jsonify({"error": "Ogiltigt förrådsvalue"}), 400
     now_iso = datetime.now().isoformat()
     today   = date.today().isoformat()
     conn    = get_connection()
@@ -598,10 +1037,10 @@ def upload_stock():
                    json.loads(request.form.get("column_map","{}") or "{}").items() if v}
 
         col_vara  = _resolve_col(list(df.columns), col_map, "vara",
-                                 {"vara","produkt","product","artikel","item"})
+                                 {"vara","produkt","product","artikel","item","ingrediens"})
         col_lager = _resolve_col(list(df.columns), col_map, "lager",
-                                 {"lager","stock","saldo","lagerantal","antal","quantity"})
-        missing = [n for n,c in [("vara",col_vara),("lager",col_lager)] if not c]
+                                 {"lager","stock","saldo","lagerantal","antal","quantity","forrad","forradsaldo"})
+        missing = [n for n,c in [("ingrediens",col_vara),("förråd",col_lager)] if not c]
         if missing:
             return jsonify({"error": f"Saknar kolumn(er): {', '.join(missing)}"}), 400
 
@@ -613,7 +1052,7 @@ def upload_stock():
         for _, row in df.iterrows():
             try:
                 pname = str(row[col_vara]).strip()
-                stock = int(float(str(row[col_lager])))
+                stock = float(str(row[col_lager]))
                 if not pname or pname=="nan": continue
             except (ValueError, TypeError):
                 skipped += 1; continue
@@ -627,7 +1066,7 @@ def upload_stock():
 
         conn.commit(); conn.close()
         suffix = f", {skipped} hoppades över" if skipped else ""
-        return jsonify({"success":True,"message":f"Uppdaterade {updated} produkt(er){suffix}","updated":updated})
+        return jsonify({"success":True,"message":f"Uppdaterade {updated} ingrediens(er){suffix}","updated":updated})
     except Exception as exc:
         return jsonify({"error": f"Fel: {exc}"}), 500
 
@@ -638,7 +1077,7 @@ def stock_template():
     path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "lager_exempel.xlsx"))
     if not os.path.exists(path):
         return jsonify({"error": "Mallfilen hittades inte"}), 404
-    return send_file(path, as_attachment=True, download_name="lager_mall.xlsx")
+    return send_file(path, as_attachment=True, download_name="forrad_mall.xlsx")
 
 
 # ─────────────────────────────────────────
@@ -665,14 +1104,14 @@ def upload_expiry():
         col_map = {k: v.lower().strip() for k,v in
                    json.loads(request.form.get("column_map","{}") or "{}").items() if v}
 
-        VARA  = {"vara","produkt","product","artikel","item"}
+        VARA  = {"vara","produkt","product","artikel","item","ingrediens"}
         DATES = {"utgångsdatum","utgangsdatum","expiry","expiry_date","datum","bäst före","best before"}
         ANTAL = {"antal","quantity","qty","amount"}
 
         col_vara  = _resolve_col(list(df.columns), col_map, "vara",         VARA)
         col_date  = _resolve_col(list(df.columns), col_map, "utgangsdatum", DATES)
         col_antal = _resolve_col(list(df.columns), col_map, "antal",        ANTAL)
-        missing = [n for n,c in [("vara",col_vara),("utgångsdatum",col_date),("antal",col_antal)] if not c]
+        missing = [n for n,c in [("ingrediens",col_vara),("utgångsdatum",col_date),("antal",col_antal)] if not c]
         if missing:
             return jsonify({"error": f"Saknar kolumn(er): {', '.join(missing)}"}), 400
 
@@ -681,7 +1120,7 @@ def upload_expiry():
             try:
                 pname    = str(row[col_vara]).strip()
                 date_raw = row[col_date]
-                qty      = int(float(str(row[col_antal])))
+                qty      = float(str(row[col_antal]))
                 if not pname or pname=="nan" or qty<=0: continue
                 date_str = date_raw.strftime("%Y-%m-%d") if isinstance(date_raw, pd.Timestamp) else str(date_raw).strip()[:10]
                 product_entries.setdefault(pname,[]).append((date_str,qty))
@@ -697,7 +1136,7 @@ def upload_expiry():
                 cur.execute("INSERT INTO expiry_dates (product_id,expiry_date,quantity) VALUES (?,?,?)",
                             (prod["id"],ds,qty)); inserted += 1
         conn.commit(); conn.close()
-        return jsonify({"success":True,"message":f"Laddade upp {inserted} rader för {len(product_entries)} produkt(er)"})
+        return jsonify({"success":True,"message":f"Laddade upp {inserted} rader för {len(product_entries)} ingrediens(er)"})
     except Exception as exc:
         return jsonify({"error": f"Fel: {exc}"}), 500
 
@@ -730,10 +1169,10 @@ def expiry_template():
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font, PatternFill
     wb = Workbook(); ws = wb.active; ws.title = "Utgångsdatum"
-    for ci,(h,w) in enumerate(zip(["vara","utgångsdatum","antal"],[28,16,10]),1):
+    for ci,(h,w) in enumerate(zip(["ingrediens","utgångsdatum","antal"],[28,16,10]),1):
         cell=ws.cell(row=1,column=ci,value=h)
         cell.font=Font(bold=True,color="FFFFFF")
-        cell.fill=PatternFill("solid",fgColor="1E3A8A")
+        cell.fill=PatternFill("solid",fgColor="7C2D12")
         cell.alignment=Alignment(horizontal="center")
         ws.column_dimensions[cell.column_letter].width=w
     today = date.today()
@@ -758,22 +1197,23 @@ def add_waste():
     product_name = body.get("product","").strip()
     waste_date   = body.get("date", date.today().isoformat())
     reason       = body.get("reason", "övrigt")
+    unit         = body.get("unit", "st")
     try:
-        quantity = int(body.get("quantity", 0))
+        quantity = float(body.get("quantity", 0))
     except (ValueError, TypeError):
         return jsonify({"error": "Ogiltigt antal"}), 400
     if not product_name or quantity <= 0:
-        return jsonify({"error": "Produkt och antal > 0 krävs"}), 400
+        return jsonify({"error": "Ingrediens och antal > 0 krävs"}), 400
 
     conn = get_connection()
     prod = conn.execute("SELECT id FROM products WHERE name=?", (product_name,)).fetchone()
     if not prod:
         conn.close()
-        return jsonify({"error": "Produkten finns inte"}), 404
-    conn.execute("INSERT INTO waste (product_id,date,quantity,reason) VALUES (?,?,?,?)",
-                 (prod["id"], waste_date, quantity, reason))
+        return jsonify({"error": "Ingrediensen finns inte"}), 404
+    conn.execute("INSERT INTO waste (product_id,date,quantity,unit,reason) VALUES (?,?,?,?,?)",
+                 (prod["id"], waste_date, quantity, unit, reason))
     conn.commit(); conn.close()
-    return jsonify({"success":True,"message":f"Registrerade {quantity} st svinn av {product_name}"})
+    return jsonify({"success":True,"message":f"Registrerade {quantity} {unit} svinn av {product_name}"})
 
 
 @app.get("/api/waste/report")
@@ -784,8 +1224,8 @@ def waste_report():
 
     product_rows = conn.execute("""
         SELECT p.name, p.price,
-               COALESCE(SUM(w.quantity),0)          AS waste_qty,
-               COALESCE(SUM(w.quantity*p.price),0)  AS waste_cost
+               COALESCE(SUM(w.quantity),0)         AS waste_qty,
+               COALESCE(SUM(w.quantity*p.price),0) AS waste_cost
         FROM products p LEFT JOIN waste w ON w.product_id=p.id
         GROUP BY p.id, p.name, p.price
         HAVING waste_qty > 0
@@ -803,7 +1243,7 @@ def waste_report():
             "price":      r["price"],
             "waste_qty":  r["waste_qty"],
             "waste_cost": round(r["waste_cost"],2),
-            "sales_qty":  int(sales),
+            "sales_qty":  float(sales),
             "waste_pct":  round(r["waste_qty"]/sales*100,1) if sales>0 else None,
         })
 
@@ -821,13 +1261,34 @@ def waste_report():
         GROUP BY reason ORDER BY qty DESC
     """).fetchall()
 
+    # Weekly breakdown (last 8 weeks)
+    eight_weeks_ago = (date.today() - timedelta(weeks=8)).isoformat()
+    weekly = conn.execute("""
+        SELECT strftime('%Y-W%W',w.date) as week,
+               SUM(w.quantity) as qty,
+               SUM(w.quantity*p.price) as cost
+        FROM waste w JOIN products p ON w.product_id=p.id
+        WHERE w.date>=?
+        GROUP BY week ORDER BY week
+    """, (eight_weeks_ago,)).fetchall()
+
+    # Recommendations: top wasters
+    recommendations = []
+    for p in products[:3]:
+        if p["waste_pct"] is not None and p["waste_pct"] > 5:
+            recommendations.append(
+                f"{p['product']}: {p['waste_pct']}% svinn — överväg att minska inköpskvantiteten"
+            )
+
     conn.close()
     return jsonify({
-        "products":   products,
-        "monthly":    [{"month":r["month"],"qty":r["qty"],"cost":round(r["cost"] or 0,2)} for r in monthly],
-        "by_reason":  [{"reason":r["reason"],"qty":r["qty"],"cost":round(r["cost"] or 0,2)} for r in by_reason],
-        "total_cost": round(sum(p["waste_cost"] for p in products),2),
-        "total_qty":  sum(p["waste_qty"] for p in products),
+        "products":        products,
+        "monthly":         [{"month":r["month"],"qty":r["qty"],"cost":round(r["cost"] or 0,2)} for r in monthly],
+        "weekly":          [{"week":r["week"],"qty":r["qty"],"cost":round(r["cost"] or 0,2)} for r in weekly],
+        "by_reason":       [{"reason":r["reason"],"qty":r["qty"],"cost":round(r["cost"] or 0,2)} for r in by_reason],
+        "total_cost":      round(sum(p["waste_cost"] for p in products),2),
+        "total_qty":       sum(p["waste_qty"] for p in products),
+        "recommendations": recommendations,
     })
 
 
@@ -838,7 +1299,7 @@ def waste_export():
     from openpyxl.styles import Alignment, Font, PatternFill
     conn = get_connection()
     rows = conn.execute("""
-        SELECT p.name as product, w.date, w.quantity, w.reason,
+        SELECT p.name as product, w.date, w.quantity, w.unit, w.reason,
                ROUND(w.quantity*p.price,2) as cost
         FROM waste w JOIN products p ON w.product_id=p.id
         ORDER BY w.date DESC, p.name
@@ -846,18 +1307,18 @@ def waste_export():
     conn.close()
 
     wb=Workbook(); ws=wb.active; ws.title="Svinnrapport"
-    headers=["Produkt","Datum","Antal","Orsak","Kostnad (kr)"]
-    widths=[26,14,10,14,14]
+    headers=["Ingrediens","Datum","Antal","Enhet","Orsak","Kostnad (kr)"]
+    widths=[26,14,10,10,14,14]
     for ci,(h,w) in enumerate(zip(headers,widths),1):
         cell=ws.cell(row=1,column=ci,value=h)
         cell.font=Font(bold=True,color="FFFFFF")
-        cell.fill=PatternFill("solid",fgColor="7C3AED")
+        cell.fill=PatternFill("solid",fgColor="7C2D12")
         cell.alignment=Alignment(horizontal="center")
         ws.column_dimensions[cell.column_letter].width=w
     for ri,r in enumerate(rows,2):
         ws.cell(ri,1,r["product"]); ws.cell(ri,2,r["date"])
-        ws.cell(ri,3,r["quantity"]); ws.cell(ri,4,r["reason"])
-        ws.cell(ri,5,r["cost"] or 0)
+        ws.cell(ri,3,r["quantity"]); ws.cell(ri,4,r["unit"])
+        ws.cell(ri,5,r["reason"]); ws.cell(ri,6,r["cost"] or 0)
     buf=BytesIO(); wb.save(buf); buf.seek(0)
     date_str=datetime.now().strftime("%Y%m%d")
     return send_file(buf,as_attachment=True,download_name=f"svinnrapport_{date_str}.xlsx",
@@ -876,14 +1337,13 @@ def export_recommendations():
     days  = _days_param(7)
     conn  = get_connection()
     prods = conn.execute("""
-        SELECT p.id, p.name, p.supplier_id, s.name as supplier_name,
-               s.lead_time_days
+        SELECT p.id, p.name, p.supplier_id, s.name as supplier_name, s.lead_time_days
         FROM products p LEFT JOIN suppliers s ON p.supplier_id=s.id ORDER BY p.name
     """).fetchall()
     conn.close()
 
-    STATUS_SV   = {"urgent":"Bradskande","soon":"Snart","plan":"Planera","unknown":"Lager okant"}
-    STATUS_FILL = {"Bradskande":"FEE2E2","Snart":"FEF3C7","Planera":"DCFCE7","Lager okant":"F1F5F9"}
+    STATUS_SV   = {"urgent":"Bradskande","soon":"Snart","plan":"Planera","unknown":"Okant"}
+    STATUS_FILL = {"Bradskande":"FEE2E2","Snart":"FEF3C7","Planera":"DCFCE7","Okant":"F1F5F9"}
 
     rows = []
     for prod in prods:
@@ -894,41 +1354,37 @@ def export_recommendations():
         conn2  = get_connection()
         exp    = _expiry_info(prod["id"], conn2); conn2.close()
         rows.append({
-            "Produkt":          prod["name"],
-            "Nuv. lager":       data["current_stock"] if data["stock_initialized"] else "Ej angivet",
+            "Ingrediens":       prod["name"],
+            "Nuv. forrad":      data["current_stock"] if data["stock_initialized"] else "Ej angivet",
             f"Prognos {days}d": data["total_forecast"],
             "Bestall antal":    data["order_quantity"],
             "Status":           status,
-            "Lagerdagar kvar":  data["days_stock"] if data["days_stock"] is not None else "-",
+            "Forradsdagar":     data["days_stock"] if data["days_stock"] is not None else "-",
             "Leverantor":       prod["supplier_name"] or "-",
             "Ledtid (dagar)":   lead,
-            "Utgar inom 3 dgr": exp["critical_qty"] if exp["critical_qty"]>0 else "",
-            "Utgar inom 7 dgr": exp["warning_qty"]  if exp["warning_qty"]>0 else "",
         })
 
-    wb=Workbook(); ws=wb.active; ws.title="Bestallningslista"
-    headers=["Produkt","Nuv. lager",f"Prognos {days}d","Bestall antal","Status",
-             "Lagerdagar kvar","Leverantor","Ledtid (dagar)","Utgar inom 3 dgr","Utgar inom 7 dgr"]
-    widths=[26,14,14,14,14,16,20,14,18,18]
+    wb=Workbook(); ws=wb.active; ws.title="Inkopsrekommendationer"
+    headers=["Ingrediens","Nuv. forrad",f"Prognos {days}d","Bestall antal","Status",
+             "Forradsdagar","Leverantor","Ledtid (dagar)"]
+    widths=[26,14,14,14,14,14,20,14]
     for ci,(h,w) in enumerate(zip(headers,widths),1):
         cell=ws.cell(row=1,column=ci,value=h)
         cell.font=Font(bold=True,color="FFFFFF")
-        cell.fill=PatternFill("solid",fgColor="1E3A8A")
+        cell.fill=PatternFill("solid",fgColor="7C2D12")
         cell.alignment=Alignment(horizontal="center")
         ws.column_dimensions[cell.column_letter].width=w
     for ri,row in enumerate(rows,2):
         vals=[row[h] for h in headers]
         base_fill=STATUS_FILL.get(row["Status"])
-        if row.get("Utgar inom 3 dgr"): base_fill="FEE2E2"
-        elif row.get("Utgar inom 7 dgr"): base_fill="FEF3C7"
         for ci,val in enumerate(vals,1):
             cell=ws.cell(row=ri,column=ci,value=val)
             cell.alignment=Alignment(horizontal="left" if ci==1 else "center")
             if base_fill: cell.fill=PatternFill("solid",fgColor=base_fill)
-    ws.append([]); ws.append(["Exportdatum:",datetime.now().strftime("%Y-%m-%d %H:%M"),f"Horisont: {days} dagar"])
+    ws.append([]); ws.append(["Exportdatum:",datetime.now().strftime("%Y-%m-%d %H:%M")])
     buf=BytesIO(); wb.save(buf); buf.seek(0)
     return send_file(buf,as_attachment=True,
-                     download_name=f"bestallningslista_{datetime.now().strftime('%Y%m%d')}_{days}d.xlsx",
+                     download_name=f"inkopsrekommendationer_{datetime.now().strftime('%Y%m%d')}_{days}d.xlsx",
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
@@ -941,7 +1397,7 @@ def export_recommendations():
 def demo():
     try:
         generate_demo_data()
-        return jsonify({"success":True,"message":"Demo-data genererad (7 produkter, 90 dagar)"})
+        return jsonify({"success":True,"message":"Demo-data genererad (7 ingredienser, 90 dagar)"})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
