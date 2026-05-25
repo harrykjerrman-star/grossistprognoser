@@ -18,6 +18,10 @@
              border-bottom:2px solid transparent;white-space:nowrap;}
     .nav-btn:hover{color:#cbd5e1;}
     .nav-btn.active{color:#fff;border-bottom-color:#be123c;}
+    .mode-card{padding:.75rem;border:2px solid #334155;background:rgba(51,65,85,0.4);transition:border-color .15s,background .15s;cursor:pointer;text-align:center;}
+    .mode-card:hover{border-color:#64748b;background:rgba(51,65,85,0.7);}
+    .mode-card.active{border-color:#be123c;background:rgba(190,18,60,0.12);}
+    .mode-card.active .mc-title{color:#fca5a5;}
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
@@ -26,10 +30,26 @@
 <div id="loginScreen" class="fixed inset-0 flex items-center justify-center bg-slate-900 z-50">
   <div class="bg-slate-800 shadow-2xl p-8 w-full max-w-sm mx-4 border border-slate-700">
     <div class="text-center mb-8">
-      <div class="inline-flex items-center justify-center w-12 h-12 bg-rose-800 text-white font-bold text-lg mb-4 select-none">R</div>
+      <div class="inline-flex items-center justify-center w-12 h-12 bg-rose-800 text-white font-bold text-lg mb-4 select-none" id="loginLogoLetter">R</div>
       <h1 class="text-xl font-bold text-white tracking-tight" id="loginTitle">Restaurangprognos</h1>
-      <p class="text-slate-400 mt-1 text-xs uppercase tracking-widest">Ingrediens &amp; Recepthantering</p>
+      <p class="mt-1 text-xs uppercase tracking-widest" id="loginSubtitle" style="color:#94a3b8">Ingrediens &amp; Recepthantering</p>
     </div>
+
+    <!-- Mode picker -->
+    <div class="mb-5">
+      <p class="text-xs text-slate-600 uppercase tracking-wider text-center mb-2">Verksamhetstyp</p>
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" id="modeGrossist" onclick="selectMode('grossist')" class="mode-card">
+          <div class="mc-title text-xs font-semibold text-white mb-0.5">Grossist</div>
+          <div class="text-xs text-slate-500">Lager &amp; prognoser</div>
+        </button>
+        <button type="button" id="modeRestaurant" onclick="selectMode('restaurant')" class="mode-card">
+          <div class="mc-title text-xs font-semibold text-white mb-0.5">Restaurang / Café</div>
+          <div class="text-xs text-slate-500">Recept &amp; ingredienser</div>
+        </button>
+      </div>
+    </div>
+
     <div id="loginError" class="hidden bg-red-500/15 border border-red-500/30 text-red-400 p-3 mb-4 text-sm"></div>
     <form id="loginForm" class="space-y-4">
       <div>
@@ -184,7 +204,7 @@
   <header class="bg-slate-800 border-b border-slate-700 px-6 py-3 flex-shrink-0">
     <div class="max-w-7xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-7 h-7 bg-rose-800 flex items-center justify-center text-white font-bold text-xs select-none flex-shrink-0">R</div>
+        <div class="w-7 h-7 bg-rose-800 flex items-center justify-center text-white font-bold text-xs select-none flex-shrink-0" id="headerLogoLetter">R</div>
         <div>
           <button onclick="editRestaurantName()" class="font-semibold text-white text-sm leading-none hover:text-rose-300 transition-colors" id="restaurantName">Min Restaurang</button>
           <p class="text-xs text-slate-500 mt-0.5 leading-none" id="headerEmail"></p>
@@ -229,7 +249,7 @@
         <p class="text-3xl font-bold text-red-400 mt-2" id="kpiUrgent">–</p>
         <p class="text-xs text-slate-600 mt-1">ingredienser att köpa in</p>
       </div>
-      <div class="bg-slate-800 border border-yellow-900/50 p-5">
+      <div class="bg-slate-800 border border-yellow-900/50 p-5" id="kpiLowPortionsCard">
         <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Recept — lågt förråd</p>
         <p class="text-3xl font-bold text-amber-400 mt-2" id="kpiLowPortions">–</p>
         <p class="text-xs text-slate-600 mt-1">rätter &lt; 10 portioner</p>
@@ -254,7 +274,7 @@
         <p class="text-sm font-semibold text-white">Inköpsrekommendationer</p>
         <p class="text-xs text-slate-500 mt-1">Se vad som behöver köpas in just nu</p>
       </button>
-      <button onclick="showSection('recipes')" class="bg-slate-800 border border-slate-700 p-4 text-left hover:border-slate-500 transition-colors">
+      <button onclick="showSection('recipes')" id="dashQuickRecipes" class="bg-slate-800 border border-slate-700 p-4 text-left hover:border-slate-500 transition-colors">
         <p class="text-sm font-semibold text-white">Recept &amp; portioner</p>
         <p class="text-xs text-slate-500 mt-1">Hantera recept och se hur många portioner du kan laga</p>
       </button>
@@ -279,7 +299,7 @@
         </div>
       </div>
 
-      <div class="bg-slate-800 p-5 border border-slate-700">
+      <div class="bg-slate-800 p-5 border border-slate-700" id="dishSalesCard">
         <h3 class="text-sm font-semibold text-white mb-1">Rätt-försäljning</h3>
         <p class="text-xs text-slate-500 mb-1">Ladda upp portioner per rätt. Omvandlas automatiskt till ingrediensförbrukning.</p>
         <p class="text-xs text-slate-600 mb-4">Behöver: rätt, datum, portioner</p>
@@ -653,6 +673,7 @@
 // ============================================================
 const API = '';
 let token          = localStorage.getItem('g_token');
+let g_mode         = localStorage.getItem('g_mode') || 'restaurant';
 let chartInst      = null;
 let dashChartInst  = null;
 let wasteChartInst = null;
@@ -682,6 +703,7 @@ const SECTIONS = ['dash','import','forecast','recs','suppliers','recipes','menu'
 document.addEventListener('DOMContentLoaded', () => {
   const rn = localStorage.getItem('g_restaurant_name');
   if (rn) document.getElementById('restaurantName').textContent = rn;
+  selectMode(g_mode, true); // init mode cards without saving
   if (token) { showDashboard(); initDashboard(); }
   document.getElementById('loginForm').addEventListener('submit', login);
   document.getElementById('productSelect').addEventListener('change', function(){
@@ -744,10 +766,84 @@ function showDashboard(){
   document.getElementById('headerEmail').textContent=localStorage.getItem('g_email')||'';
   const rn=localStorage.getItem('g_restaurant_name');
   if(rn) document.getElementById('restaurantName').textContent=rn;
+  applyMode(g_mode);
 }
 function editRestaurantName(){
   const n=prompt('Restaurangens namn:',localStorage.getItem('g_restaurant_name')||'');
   if(n!==null){ localStorage.setItem('g_restaurant_name',n||''); document.getElementById('restaurantName').textContent=n||'Min Restaurang'; }
+}
+
+// ============================================================
+// Mode: Grossist vs Restaurang/Café
+// ============================================================
+function selectMode(mode, silent) {
+  g_mode = mode;
+  if (!silent) localStorage.setItem('g_mode', mode);
+  // Update login mode cards
+  ['grossist','restaurant'].forEach(m => {
+    const el = document.getElementById('mode' + (m==='grossist'?'Grossist':'Restaurant'));
+    if (el) el.classList.toggle('active', m === mode);
+  });
+  // Update login header text
+  const isG = mode === 'grossist';
+  const titleEl = document.getElementById('loginTitle');
+  const subEl   = document.getElementById('loginSubtitle');
+  const logoEl  = document.getElementById('loginLogoLetter');
+  if (titleEl) titleEl.textContent = isG ? 'Grossistprognos' : 'Restaurangprognos';
+  if (subEl)   subEl.textContent   = isG ? 'Lager & Prognoshantering' : 'Ingrediens & Recepthantering';
+  if (logoEl)  logoEl.textContent  = isG ? 'G' : 'R';
+}
+
+function applyMode(mode) {
+  const isG = mode === 'grossist';
+
+  // Header logo letter
+  const hLogo = document.getElementById('headerLogoLetter');
+  if (hLogo) hLogo.textContent = isG ? 'G' : 'R';
+
+  // Nav: restaurant-only tabs
+  ['nav-recipes','nav-menu'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', isG);
+  });
+
+  // Nav label overrides
+  const navRecs  = document.getElementById('nav-recs');
+  const navStock = document.getElementById('nav-stock');
+  if (navRecs)  navRecs.textContent  = isG ? 'Beställningsrek.' : 'Inköpsrek.';
+  if (navStock) navStock.textContent = isG ? 'Lager'            : 'Förråd';
+
+  // Dashboard KPI card for recipes
+  const kpiCard = document.getElementById('kpiLowPortionsCard');
+  if (kpiCard) kpiCard.classList.toggle('hidden', isG);
+
+  // Dashboard quick-link for recipes
+  const quickR = document.getElementById('dashQuickRecipes');
+  if (quickR) quickR.classList.toggle('hidden', isG);
+
+  // Import: dish-sales card
+  const dishCard = document.getElementById('dishSalesCard');
+  if (dishCard) dishCard.classList.toggle('hidden', isG);
+
+  // Section headings & labels we can patch inline
+  const recsH = document.querySelector('#sec-recs h2');
+  if (recsH) recsH.textContent = isG ? 'Beställningsrekommendationer' : 'Inköpsrekommendationer';
+
+  const stockH = document.querySelector('#sec-stock .bg-slate-800:last-child h2');
+  if (stockH) stockH.textContent = isG ? 'Lageröversikt' : 'Förrådsöversikt';
+
+  // Forecast label
+  const fLabel = document.querySelector('#sec-forecast label');
+  if (fLabel && fLabel.textContent.includes('Ingrediens'))
+    fLabel.textContent = isG ? 'Vara' : 'Ingrediens';
+
+  // Waste section: "Ingrediens" dropdown label
+  const wLabel = document.querySelector('#sec-waste label');
+  if (wLabel && (wLabel.textContent.trim()==='Ingrediens'||wLabel.textContent.trim()==='Vara'))
+    wLabel.textContent = isG ? 'Vara' : 'Ingrediens';
+
+  // Page title
+  document.title = isG ? 'Grossistprognos' : 'Restaurangprognos';
 }
 
 // ============================================================
