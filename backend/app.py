@@ -1,7 +1,7 @@
 import hashlib
 import os
 import secrets
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from functools import wraps
 from io import BytesIO
 
@@ -50,6 +50,25 @@ def _days_param(default: int = 7) -> int:
         return max(1, min(90, int(request.args.get("days", default))))
     except (ValueError, TypeError):
         return default
+
+
+def _expiry_info(product_id: int, conn) -> dict:
+    """Returns expiry quantities expiring within 3 / 7 days from today."""
+    today     = date.today()
+    in3_iso   = (today + timedelta(days=3)).isoformat()
+    in7_iso   = (today + timedelta(days=7)).isoformat()
+    today_iso = today.isoformat()
+
+    rows = conn.execute(
+        """SELECT expiry_date, quantity FROM expiry_dates
+           WHERE product_id = ? AND expiry_date >= ?
+           ORDER BY expiry_date""",
+        (product_id, today_iso),
+    ).fetchall()
+
+    critical = sum(r["quantity"] for r in rows if r["expiry_date"] < in3_iso)
+    warning  = sum(r["quantity"] for r in rows if in3_iso <= r["expiry_date"] < in7_iso)
+    return {"critical_qty": critical, "warning_qty": warning}
 
 
 # ─────────────────────────────────────────
@@ -115,7 +134,6 @@ def upload():
         if missing:
             return jsonify({"error": f"Saknar kolumn(er): {', '.join(missing)}"}), 400
 
-        # Group rows by product  →  {name: [(date, qty), ...]}
         upload_map: dict[str, list[tuple[str, int]]] = {}
         for _, row in df.iterrows():
             try:
@@ -134,7 +152,6 @@ def upload():
         auto_deducted = []
 
         for pname, entries in upload_map.items():
-            # Ensure product row exists
             cur.execute("INSERT OR IGNORE INTO products (name) VALUES (?)", (pname,))
             prod = cur.execute(
                 "SELECT id, current_stock, stock_initialized, stock_sync_date FROM products WHERE name = ?",
@@ -143,7 +160,6 @@ def upload():
 
             max_upload_date = max(d for d, _ in entries)
 
-            # Insert all sales rows
             for date_val, qty in entries:
                 cur.execute(
                     "INSERT INTO sales (product_id, date, quantity) VALUES (?, ?, ?)",
@@ -151,7 +167,6 @@ def upload():
                 )
                 inserted += 1
 
-            # Auto-deduct from stock (only for dates after the sync point)
             if prod["stock_initialized"]:
                 sync_date = prod["stock_sync_date"] or ""
                 new_sales = sum(qty for d, qty in entries if d > sync_date)
@@ -164,9 +179,8 @@ def upload():
                            WHERE id = ?""",
                         (new_stock, new_sync_date, datetime.now().isoformat(), prod["id"]),
                     )
-                    auto_deducted.append(f"{pname} (−{new_sales})")
+                    auto_deducted.append(f"{pname} (-{new_sales})")
             else:
-                # Track sync date so future deductions are correct once stock is set
                 if not prod["stock_sync_date"] or max_upload_date > prod["stock_sync_date"]:
                     cur.execute(
                         "UPDATE products SET stock_sync_date = ? WHERE id = ?",
@@ -231,7 +245,7 @@ def get_sales(product_name):
 
 
 # ─────────────────────────────────────────
-# Forecast  (days via ?days= param)
+# Forecast
 # ─────────────────────────────────────────
 
 @app.get("/api/forecast/<product_name>")
@@ -245,30 +259,35 @@ def forecast(product_name):
 
 
 # ─────────────────────────────────────────
-# Recommendations  (days via ?days= param)
+# Recommendations
 # ─────────────────────────────────────────
 
 @app.get("/api/recommendations")
 @require_auth
 def recommendations():
-    days  = _days_param(7)
-    conn  = get_connection()
-    names = [r["name"] for r in conn.execute("SELECT name FROM products ORDER BY name").fetchall()]
+    days = _days_param(7)
+    conn = get_connection()
+    prods = conn.execute("SELECT id, name FROM products ORDER BY name").fetchall()
     conn.close()
 
     results = []
-    for name in names:
-        data = get_forecast(name, days=days)
+    for prod in prods:
+        data = get_forecast(prod["name"], days=days)
         if data:
+            conn2 = get_connection()
+            exp   = _expiry_info(prod["id"], conn2)
+            conn2.close()
             results.append({
-                "product":           name,
-                "status":            data["status"],
-                "current_stock":     data["current_stock"],
-                "stock_initialized": data["stock_initialized"],
-                "order_quantity":    data["order_quantity"],
-                "days_stock":        data["days_stock"],
-                "total_forecast":    data["total_forecast"],
-                "forecast_days":     data["forecast_days"],
+                "product":             prod["name"],
+                "status":              data["status"],
+                "current_stock":       data["current_stock"],
+                "stock_initialized":   data["stock_initialized"],
+                "order_quantity":      data["order_quantity"],
+                "days_stock":          data["days_stock"],
+                "total_forecast":      data["total_forecast"],
+                "forecast_days":       data["forecast_days"],
+                "expiry_critical_qty": exp["critical_qty"],
+                "expiry_warning_qty":  exp["warning_qty"],
             })
 
     priority = {"urgent": 0, "soon": 1, "unknown": 2, "plan": 3}
@@ -289,10 +308,9 @@ def update_stock(product_name):
     except (ValueError, TypeError):
         return jsonify({"error": "Ogiltigt lagervärde"}), 400
 
-    now_iso  = datetime.now().isoformat()
-    today    = date.today().isoformat()
-    conn     = get_connection()
-    # Set sync_date to max(today, existing_sync_date) so we don't re-deduct old sales
+    now_iso = datetime.now().isoformat()
+    today   = date.today().isoformat()
+    conn    = get_connection()
     conn.execute(
         """UPDATE products
            SET current_stock     = ?,
@@ -394,6 +412,159 @@ def stock_template():
 
 
 # ─────────────────────────────────────────
+# Expiry date management
+# ─────────────────────────────────────────
+
+@app.post("/api/upload-expiry")
+@require_auth
+def upload_expiry():
+    if "file" not in request.files:
+        return jsonify({"error": "Ingen fil uppladdad"}), 400
+    f    = request.files["file"]
+    name = (f.filename or "").lower()
+
+    try:
+        if name.endswith(".csv"):
+            df = pd.read_csv(f, encoding="utf-8-sig")
+        elif name.endswith((".xlsx", ".xls")):
+            df = pd.read_excel(f)
+        else:
+            return jsonify({"error": "Stödjer bara CSV och Excel"}), 400
+
+        df.columns = df.columns.str.lower().str.strip()
+        VARA_NAMES = {"vara", "produkt", "product", "artikel", "item"}
+        DATE_NAMES = {
+            "utgångsdatum", "utgangsdatum", "expiry", "expiry_date",
+            "datum", "bäst före", "best before", "bast fore",
+        }
+        ANTAL_NAMES = {"antal", "quantity", "qty", "amount"}
+
+        col_vara  = next((c for c in df.columns if c in VARA_NAMES), None)
+        col_date  = next((c for c in df.columns if c in DATE_NAMES), None)
+        col_antal = next((c for c in df.columns if c in ANTAL_NAMES), None)
+        missing   = [n for n, c in [("vara", col_vara), ("utgångsdatum", col_date), ("antal", col_antal)] if not c]
+        if missing:
+            return jsonify({"error": f"Saknar kolumn(er): {', '.join(missing)}"}), 400
+
+        product_entries: dict[str, list[tuple[str, int]]] = {}
+        for _, row in df.iterrows():
+            try:
+                pname    = str(row[col_vara]).strip()
+                date_raw = row[col_date]
+                qty      = int(float(str(row[col_antal])))
+                if not pname or pname == "nan" or qty <= 0:
+                    continue
+                if isinstance(date_raw, pd.Timestamp):
+                    date_str = date_raw.strftime("%Y-%m-%d")
+                else:
+                    date_str = str(date_raw).strip()[:10]
+                product_entries.setdefault(pname, []).append((date_str, qty))
+            except (ValueError, TypeError):
+                continue
+
+        conn     = get_connection()
+        cur      = conn.cursor()
+        inserted = 0
+
+        for pname, entries in product_entries.items():
+            prod = cur.execute("SELECT id FROM products WHERE name = ?", (pname,)).fetchone()
+            if not prod:
+                continue
+            pid = prod["id"]
+            cur.execute("DELETE FROM expiry_dates WHERE product_id = ?", (pid,))
+            for date_str, qty in entries:
+                cur.execute(
+                    "INSERT INTO expiry_dates (product_id, expiry_date, quantity) VALUES (?, ?, ?)",
+                    (pid, date_str, qty),
+                )
+                inserted += 1
+
+        conn.commit()
+        conn.close()
+        return jsonify({
+            "success": True,
+            "message": f"Laddade upp {inserted} utgångsdatumrader för {len(product_entries)} produkt(er)",
+        })
+
+    except Exception as exc:
+        return jsonify({"error": f"Fel vid uppladdning: {exc}"}), 500
+
+
+@app.get("/api/expiry")
+@require_auth
+def get_expiry():
+    today     = date.today()
+    in7_iso   = (today + timedelta(days=7)).isoformat()
+    today_iso = today.isoformat()
+
+    conn = get_connection()
+    rows = conn.execute(
+        """SELECT p.name AS product, e.expiry_date, e.quantity
+           FROM   expiry_dates e
+           JOIN   products p ON e.product_id = p.id
+           WHERE  e.expiry_date >= ? AND e.expiry_date < ?
+           ORDER  BY e.expiry_date, p.name""",
+        (today_iso, in7_iso),
+    ).fetchall()
+    conn.close()
+
+    result = []
+    for r in rows:
+        d         = date.fromisoformat(r["expiry_date"])
+        days_left = (d - today).days
+        urgency   = "critical" if days_left < 3 else "warning"
+        result.append({
+            "product":     r["product"],
+            "expiry_date": r["expiry_date"],
+            "quantity":    r["quantity"],
+            "days_left":   days_left,
+            "urgency":     urgency,
+        })
+    return jsonify(result)
+
+
+@app.get("/api/expiry-template")
+@require_auth
+def expiry_template():
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Utgångsdatum"
+
+    headers = ["vara", "utgångsdatum", "antal"]
+    col_widths = [28, 16, 10]
+    for ci, (h, w) in enumerate(zip(headers, col_widths), 1):
+        cell           = ws.cell(row=1, column=ci, value=h)
+        cell.font      = Font(bold=True, color="FFFFFF")
+        cell.fill      = PatternFill("solid", fgColor="1E3A8A")
+        cell.alignment = Alignment(horizontal="center")
+        ws.column_dimensions[cell.column_letter].width = w
+
+    today = date.today()
+    examples = [
+        ("Mjölk 3L",            (today + timedelta(days=2)).isoformat(),  12),
+        ("Grädde 1L",           (today + timedelta(days=5)).isoformat(),   8),
+        ("Yoghurt Naturell 1L", (today + timedelta(days=14)).isoformat(), 24),
+    ]
+    for ri, (vara, datum, antal) in enumerate(examples, 2):
+        ws.cell(row=ri, column=1, value=vara)
+        ws.cell(row=ri, column=2, value=datum)
+        ws.cell(row=ri, column=3, value=antal)
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name="utgangsdatum_mall.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+# ─────────────────────────────────────────
 # Export: order recommendations as Excel
 # ─────────────────────────────────────────
 
@@ -403,52 +574,67 @@ def export_recommendations():
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font, PatternFill
 
-    days  = _days_param(7)
-    conn  = get_connection()
-    names = [r["name"] for r in conn.execute("SELECT name FROM products ORDER BY name").fetchall()]
+    days = _days_param(7)
+    conn = get_connection()
+    prods = conn.execute("SELECT id, name FROM products ORDER BY name").fetchall()
     conn.close()
 
-    STATUS_SV   = {"urgent": "Brådskande", "soon": "Snart", "plan": "Planera", "unknown": "Lager okänt"}
-    STATUS_FILL = {"Brådskande": "FEE2E2", "Snart": "FEF3C7", "Planera": "DCFCE7", "Lager okänt": "F1F5F9"}
+    STATUS_SV   = {"urgent": "Brädskande", "soon": "Snart", "plan": "Planera", "unknown": "Lager okänt"}
+    STATUS_FILL = {"Brädskande": "FEE2E2", "Snart": "FEF3C7", "Planera": "DCFCE7", "Lager okänt": "F1F5F9"}
 
     rows = []
-    for name in names:
-        data = get_forecast(name, days=days)
+    for prod in prods:
+        data = get_forecast(prod["name"], days=days)
         if not data:
             continue
+        conn2 = get_connection()
+        exp   = _expiry_info(prod["id"], conn2)
+        conn2.close()
         rows.append({
-            "Produkt":               name,
-            "Nuv. lager":            data["current_stock"] if data["stock_initialized"] else "Ej angivet",
-            f"Prognos {days}d":      data["total_forecast"],
-            "Beställ antal":         data["order_quantity"],
-            "Status":                STATUS_SV.get(data["status"], data["status"]),
-            "Lagerdagar kvar":       data["days_stock"] if data["days_stock"] is not None else "–",
+            "Produkt":              prod["name"],
+            "Nuv. lager":           data["current_stock"] if data["stock_initialized"] else "Ej angivet",
+            f"Prognos {days}d":     data["total_forecast"],
+            "Beställ antal":        data["order_quantity"],
+            "Status":               STATUS_SV.get(data["status"], data["status"]),
+            "Lagerdagar kvar":      data["days_stock"] if data["days_stock"] is not None else "-",
+            "Utgår inom 3 dgr":    exp["critical_qty"] if exp["critical_qty"] > 0 else "",
+            "Utgår inom 7 dgr":    exp["warning_qty"]  if exp["warning_qty"]  > 0 else "",
         })
 
     wb = Workbook()
     ws = wb.active
     ws.title = "Beställningslista"
 
-    headers = ["Produkt", "Nuv. lager", f"Prognos {days}d", "Beställ antal", "Status", "Lagerdagar kvar"]
-    col_widths = [26, 14, 14, 14, 14, 16]
+    headers    = ["Produkt", "Nuv. lager", f"Prognos {days}d", "Beställ antal",
+                  "Status", "Lagerdagar kvar", "Utgår inom 3 dgr", "Utgår inom 7 dgr"]
+    col_widths = [26, 14, 14, 14, 14, 16, 18, 18]
 
     for ci, (h, w) in enumerate(zip(headers, col_widths), 1):
-        cell      = ws.cell(row=1, column=ci, value=h)
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="1E3A8A")
+        cell           = ws.cell(row=1, column=ci, value=h)
+        cell.font      = Font(bold=True, color="FFFFFF")
+        cell.fill      = PatternFill("solid", fgColor="1E3A8A")
         cell.alignment = Alignment(horizontal="center")
         ws.column_dimensions[cell.column_letter].width = w
 
+    EXPIRY_CRIT_FILL = "FEE2E2"
+    EXPIRY_WARN_FILL = "FEF3C7"
+
     for ri, row in enumerate(rows, 2):
         vals = [row[h] for h in headers]
-        fill_color = STATUS_FILL.get(row["Status"])
+        base_fill = STATUS_FILL.get(row["Status"])
+
+        # Override row color if expiry is critical
+        if row.get("Utgår inom 3 dgr"):
+            base_fill = EXPIRY_CRIT_FILL
+        elif row.get("Utgår inom 7 dgr"):
+            base_fill = EXPIRY_WARN_FILL
+
         for ci, val in enumerate(vals, 1):
             cell           = ws.cell(row=ri, column=ci, value=val)
             cell.alignment = Alignment(horizontal="left" if ci == 1 else "center")
-            if fill_color:
-                cell.fill = PatternFill("solid", fgColor=fill_color)
+            if base_fill:
+                cell.fill = PatternFill("solid", fgColor=base_fill)
 
-    # Summary row
     ws.append([])
     ws.append(["Exportdatum:", datetime.now().strftime("%Y-%m-%d %H:%M"), f"Horisont: {days} dagar"])
 

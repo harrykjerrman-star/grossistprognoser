@@ -42,6 +42,16 @@ def init_db() -> None:
 
         CREATE INDEX IF NOT EXISTS idx_sales_product_date
             ON sales(product_id, date);
+
+        CREATE TABLE IF NOT EXISTS expiry_dates (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id  INTEGER NOT NULL REFERENCES products(id),
+            expiry_date TEXT    NOT NULL,
+            quantity    INTEGER NOT NULL DEFAULT 0
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_expiry_product
+            ON expiry_dates(product_id, expiry_date);
     """)
 
     # Migrate existing databases that pre-date the new columns

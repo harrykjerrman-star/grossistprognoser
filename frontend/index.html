@@ -4,40 +4,59 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Grossistprognoser</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <style>
-    [x-cloak] { display: none; }
+    body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
     .spin { animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
 
-<!-- ===================== LOGIN SCREEN ===================== -->
+<!-- ===================== LOGIN ===================== -->
 <div id="loginScreen" class="fixed inset-0 flex items-center justify-center bg-slate-900 z-50">
-  <div class="bg-slate-800 rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4 border border-slate-700">
+  <div class="bg-slate-800 shadow-2xl p-8 w-full max-w-sm mx-4 border border-slate-700">
+
     <div class="text-center mb-8">
-      <div class="text-5xl mb-3">📦</div>
-      <h1 class="text-2xl font-bold text-white">Grossistprognoser</h1>
-      <p class="text-slate-400 mt-1 text-sm">AI-baserade beställningsrekommendationer</p>
+      <div class="inline-flex items-center justify-center w-12 h-12 bg-blue-700 text-white font-bold text-lg mb-4 select-none">GP</div>
+      <h1 class="text-xl font-bold text-white tracking-tight">Grossistprognoser</h1>
+      <p class="text-slate-400 mt-1 text-xs uppercase tracking-widest">Supply Chain Management</p>
     </div>
 
-    <div id="loginError" class="hidden bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg p-3 mb-4 text-sm"></div>
+    <div id="loginError" class="hidden bg-red-500/15 border border-red-500/30 text-red-400 p-3 mb-4 text-sm"></div>
 
     <form id="loginForm" class="space-y-4">
       <div>
-        <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">E-postadress</label>
+        <label class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">E-postadress</label>
         <input type="email" id="loginEmail" value="demo@grossist.se"
-          class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+          class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent">
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Lösenord</label>
+        <label class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">Lösenord</label>
         <input type="password" id="loginPassword" value="demo123"
-          class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+          class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent">
       </div>
       <button type="submit" id="loginBtn"
-        class="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors text-sm">
+        class="w-full bg-blue-700 hover:bg-blue-600 active:bg-blue-800 text-white font-semibold py-2.5 px-4 text-sm transition-colors uppercase tracking-wide">
         Logga in
       </button>
     </form>
@@ -52,17 +71,17 @@
 <div id="dashboard" class="hidden min-h-screen flex flex-col">
 
   <!-- Header -->
-  <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex-shrink-0">
+  <header class="bg-slate-800 border-b border-slate-700 px-6 py-3 flex-shrink-0">
     <div class="max-w-7xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <span class="text-2xl">📦</span>
+        <div class="w-7 h-7 bg-blue-700 flex items-center justify-center text-white font-bold text-xs select-none flex-shrink-0">GP</div>
         <div>
-          <h1 class="font-bold text-white leading-none">Grossistprognoser</h1>
-          <p class="text-xs text-slate-500 mt-0.5" id="headerEmail"></p>
+          <span class="font-semibold text-white text-sm leading-none">Grossistprognoser</span>
+          <p class="text-xs text-slate-500 mt-0.5 leading-none" id="headerEmail"></p>
         </div>
       </div>
       <button onclick="logout()"
-        class="text-sm text-slate-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-slate-700 transition-colors">
+        class="text-xs text-slate-400 hover:text-white px-3 py-1.5 hover:bg-slate-700 transition-colors border border-transparent hover:border-slate-600">
         Logga ut
       </button>
     </div>
@@ -72,97 +91,116 @@
   <main class="max-w-7xl mx-auto w-full px-6 py-8 flex-1 space-y-6">
 
     <!-- Alert -->
-    <div id="alert" class="hidden rounded-lg px-4 py-3 text-sm flex items-center gap-2"></div>
+    <div id="alert" class="hidden px-4 py-3 text-sm flex items-center gap-2"></div>
 
-    <!-- Top cards: Upload + Demo + Stock -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <!-- ── Import cards ── -->
+    <section>
+      <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Importera data</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
 
-      <!-- Upload försäljning -->
-      <div class="bg-slate-800 rounded-xl p-6 border border-slate-700">
-        <h2 class="font-semibold text-white mb-1 flex items-center gap-2">
-          <span>📤</span> Ladda upp försäljningsdata
-        </h2>
-        <p class="text-xs text-slate-500 mb-4">
-          CSV eller Excel med kolumner: <code class="text-blue-400">vara, datum, antal</code>
-        </p>
-        <div class="flex gap-2">
-          <label class="flex-1 cursor-pointer">
-            <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" class="hidden" onchange="onFileSelected(this)">
-            <div id="fileLabel" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg px-3 py-2.5 text-center text-sm text-slate-400 transition-colors truncate">
-              Välj fil...
-            </div>
-          </label>
-          <button id="uploadBtn" onclick="uploadFile()"
-            class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
-            Ladda upp
+        <!-- Försäljningsdata -->
+        <div class="bg-slate-800 p-5 border border-slate-700">
+          <h3 class="text-sm font-semibold text-white mb-1">Försäljningsdata</h3>
+          <p class="text-xs text-slate-500 mb-4">
+            CSV eller Excel med kolumner: <code class="text-blue-400">vara, datum, antal</code>
+          </p>
+          <div class="flex gap-2">
+            <label class="flex-1 cursor-pointer">
+              <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" class="hidden" onchange="onFileSelected(this)">
+              <div id="fileLabel" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-3 py-2 text-center text-xs text-slate-400 transition-colors truncate">
+                Välj fil...
+              </div>
+            </label>
+            <button id="uploadBtn" onclick="uploadFile()"
+              class="bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 text-xs font-medium transition-colors whitespace-nowrap">
+              Ladda upp
+            </button>
+          </div>
+        </div>
+
+        <!-- Demo-data -->
+        <div class="bg-slate-800 p-5 border border-slate-700">
+          <h3 class="text-sm font-semibold text-white mb-1">Demo-data</h3>
+          <p class="text-xs text-slate-500 mb-4">
+            90 dagars realistisk försäljning för 7 produkter.
+            <span class="text-amber-400">Ersätter befintlig data.</span>
+          </p>
+          <button id="demoBtn" onclick="generateDemo()"
+            class="w-full bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 text-xs font-medium transition-colors">
+            Generera demo-data
           </button>
         </div>
-      </div>
 
-      <!-- Demo -->
-      <div class="bg-slate-800 rounded-xl p-6 border border-slate-700">
-        <h2 class="font-semibold text-white mb-1 flex items-center gap-2">
-          <span>🎲</span> Generera demo-data
-        </h2>
-        <p class="text-xs text-slate-500 mb-4">
-          90 dagars realistisk försäljning för 7 produkter med vecko- och säsongsvariationer.
-          <span class="text-amber-400">Ersätter befintlig data.</span>
-        </p>
-        <button id="demoBtn" onclick="generateDemo()"
-          class="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
-          Generera demo-data
-        </button>
-      </div>
-
-      <!-- Uppdatera lager via fil -->
-      <div class="bg-slate-800 rounded-xl p-6 border border-slate-700">
-        <h2 class="font-semibold text-white mb-1 flex items-center gap-2">
-          <span>🏭</span> Uppdatera lager
-        </h2>
-        <p class="text-xs text-slate-500 mb-4">
-          Excel med kolumner: <code class="text-violet-400">vara, lager</code>.
-          <button onclick="downloadTemplate()" class="text-violet-400 hover:text-violet-300 hover:underline ml-1 transition-colors">
-            Ladda ner mall ↓
-          </button>
-        </p>
-        <div class="flex gap-2">
-          <label class="flex-1 cursor-pointer">
-            <input type="file" id="stockFileInput" accept=".csv,.xlsx,.xls" class="hidden" onchange="onStockFileSelected(this)">
-            <div id="stockFileLabel" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg px-3 py-2.5 text-center text-sm text-slate-400 transition-colors truncate">
-              Välj Excel/CSV…
-            </div>
-          </label>
-          <button id="stockUploadBtn" onclick="uploadStock()"
-            class="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
-            Uppdatera
-          </button>
+        <!-- Lageruppdatering -->
+        <div class="bg-slate-800 p-5 border border-slate-700">
+          <h3 class="text-sm font-semibold text-white mb-1">Lagersaldo</h3>
+          <p class="text-xs text-slate-500 mb-4">
+            Excel med kolumner: <code class="text-violet-400">vara, lager</code>.
+            <button onclick="downloadTemplate()" class="text-violet-400 hover:text-violet-300 hover:underline ml-1 transition-colors">
+              Ladda ner mall
+            </button>
+          </p>
+          <div class="flex gap-2">
+            <label class="flex-1 cursor-pointer">
+              <input type="file" id="stockFileInput" accept=".csv,.xlsx,.xls" class="hidden" onchange="onStockFileSelected(this)">
+              <div id="stockFileLabel" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-3 py-2 text-center text-xs text-slate-400 transition-colors truncate">
+                Välj fil...
+              </div>
+            </label>
+            <button id="stockUploadBtn" onclick="uploadStock()"
+              class="bg-violet-700 hover:bg-violet-600 text-white px-4 py-2 text-xs font-medium transition-colors whitespace-nowrap">
+              Uppdatera
+            </button>
+          </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Forecast section -->
-    <div class="bg-slate-800 rounded-xl border border-slate-700">
-      <div class="px-6 py-5 border-b border-slate-700">
-        <h2 class="font-semibold text-white mb-4 flex items-center gap-2">
-          <span>📈</span> Prognos per produkt
-        </h2>
+        <!-- Utgångsdatum -->
+        <div class="bg-slate-800 p-5 border border-slate-700">
+          <h3 class="text-sm font-semibold text-white mb-1">Utgångsdatum</h3>
+          <p class="text-xs text-slate-500 mb-4">
+            Excel: <code class="text-rose-400">vara, utgångsdatum, antal</code>.
+            <button onclick="downloadExpiryTemplate()" class="text-rose-400 hover:text-rose-300 hover:underline ml-1 transition-colors">
+              Ladda ner mall
+            </button>
+          </p>
+          <div class="flex gap-2">
+            <label class="flex-1 cursor-pointer">
+              <input type="file" id="expiryFileInput" accept=".csv,.xlsx,.xls" class="hidden" onchange="onExpiryFileSelected(this)">
+              <div id="expiryFileLabel" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-3 py-2 text-center text-xs text-slate-400 transition-colors truncate">
+                Välj fil...
+              </div>
+            </label>
+            <button id="expiryUploadBtn" onclick="uploadExpiry()"
+              class="bg-rose-700 hover:bg-rose-600 text-white px-4 py-2 text-xs font-medium transition-colors whitespace-nowrap">
+              Uppdatera
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Prognos per produkt ── -->
+    <section class="bg-slate-800 border border-slate-700">
+      <div class="px-6 py-4 border-b border-slate-700">
+        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Prognos per produkt</h2>
         <div class="flex flex-wrap gap-3 items-end">
           <div class="flex-1 min-w-44">
-            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wide">Produkt</label>
+            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">Produkt</label>
             <select id="productSelect"
-              class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
               <option value="">-- Välj produkt --</option>
             </select>
           </div>
           <div class="w-36">
-            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wide">Lager (st)</label>
+            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">Lager (st)</label>
             <input type="number" id="stockInput" min="0" placeholder="Nuvarande"
-              class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
           </div>
           <div class="w-32">
-            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wide">Horisont</label>
+            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">Horisont</label>
             <select id="daySelect"
-              class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
               <option value="7" selected>7 dagar</option>
               <option value="14">14 dagar</option>
               <option value="30">30 dagar</option>
@@ -170,7 +208,7 @@
             </select>
           </div>
           <button onclick="loadForecastForSelected()"
-            class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors">
+            class="bg-blue-700 hover:bg-blue-600 text-white px-5 py-2.5 text-sm font-medium transition-colors">
             Visa prognos
           </button>
         </div>
@@ -179,36 +217,35 @@
       <div class="p-6">
         <!-- Placeholder -->
         <div id="forecastPlaceholder" class="flex flex-col items-center justify-center h-56 text-slate-600">
-          <span class="text-4xl mb-3">📊</span>
-          <p class="text-sm">Välj en produkt ovan för att se 7-dagarsprognos</p>
+          <p class="text-sm">Välj en produkt ovan för att se prognos</p>
         </div>
 
         <!-- Forecast content -->
         <div id="forecastContent" class="hidden">
           <!-- Stat cards -->
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-slate-700/50 rounded-lg p-4">
-              <p class="text-xs text-slate-500 uppercase tracking-wide">Nuv. lager</p>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div class="bg-slate-700/40 border border-slate-700 p-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Nuv. lager</p>
               <p class="text-2xl font-bold text-white mt-1" id="sStock">–</p>
             </div>
-            <div class="bg-slate-700/50 rounded-lg p-4">
-              <p class="text-xs text-slate-500 uppercase tracking-wide">Prognos <span id="dayLabelStat">7</span> dgr</p>
+            <div class="bg-slate-700/40 border border-slate-700 p-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Prognos <span id="dayLabelStat">7</span> dgr</p>
               <p class="text-2xl font-bold text-white mt-1" id="sForecast">–</p>
             </div>
-            <div class="bg-slate-700/50 rounded-lg p-4">
-              <p class="text-xs text-slate-500 uppercase tracking-wide">Beställ</p>
+            <div class="bg-slate-700/40 border border-slate-700 p-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Beställ</p>
               <p class="text-2xl font-bold text-amber-400 mt-1" id="sOrder">–</p>
             </div>
-            <div class="bg-slate-700/50 rounded-lg p-4">
-              <p class="text-xs text-slate-500 uppercase tracking-wide">Lagerdagar</p>
+            <div class="bg-slate-700/40 border border-slate-700 p-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Lagerdagar</p>
               <p class="text-2xl font-bold mt-1" id="sDays">–</p>
             </div>
           </div>
 
           <!-- Method badge -->
           <div class="flex items-center gap-2 mb-4">
-            <span id="methodBadge" class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-400"></span>
-            <span class="text-xs text-slate-600">Prognos 7 dagar framåt med 80% konfidensintervall</span>
+            <span id="methodBadge" class="text-xs px-2 py-0.5 bg-slate-700 text-slate-400 border border-slate-600"></span>
+            <span id="methodDesc" class="text-xs text-slate-600">Prognos med 80% konfidensintervall</span>
           </div>
 
           <!-- Chart -->
@@ -217,21 +254,33 @@
           </div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Recommendations -->
-    <div class="bg-slate-800 rounded-xl border border-slate-700">
-      <div class="px-6 py-5 border-b border-slate-700 flex items-center justify-between">
-        <h2 class="font-semibold text-white flex items-center gap-2">
-          <span>🛒</span> Beställningsrekommendationer
-        </h2>
+    <!-- ── Utgår snart ── -->
+    <section class="bg-slate-800 border border-slate-700">
+      <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Utgångsdatum — varningar</h2>
+        <button onclick="loadExpiryTable()"
+          class="text-xs text-slate-500 hover:text-white transition-colors px-2 py-1 hover:bg-slate-700">
+          ↺ Uppdatera
+        </button>
+      </div>
+      <div id="expiryContainer" class="p-6">
+        <p class="text-slate-600 text-sm text-center py-8">Inga utgångsdatum inlästa</p>
+      </div>
+    </section>
+
+    <!-- ── Beställningsrekommendationer ── -->
+    <section class="bg-slate-800 border border-slate-700">
+      <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Beställningsrekommendationer</h2>
         <div class="flex items-center gap-2">
           <button onclick="exportRecommendations()" id="exportBtn"
-            class="text-xs bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
-            ↓ Exportera Excel
+            class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 border border-slate-600 transition-colors">
+            Exportera Excel
           </button>
           <button onclick="loadRecommendations()"
-            class="text-xs text-slate-500 hover:text-white transition-colors px-2 py-1 rounded hover:bg-slate-700">
+            class="text-xs text-slate-500 hover:text-white transition-colors px-2 py-1 hover:bg-slate-700">
             ↺ Uppdatera
           </button>
         </div>
@@ -239,23 +288,21 @@
       <div id="recsContainer" class="p-6">
         <p class="text-slate-600 text-sm text-center py-8">Ladda data för att se rekommendationer</p>
       </div>
-    </div>
+    </section>
 
-    <!-- Stock overview -->
-    <div class="bg-slate-800 rounded-xl border border-slate-700">
-      <div class="px-6 py-5 border-b border-slate-700 flex items-center justify-between">
-        <h2 class="font-semibold text-white flex items-center gap-2">
-          <span>📦</span> Lageröversikt
-        </h2>
+    <!-- ── Lageröversikt ── -->
+    <section class="bg-slate-800 border border-slate-700">
+      <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Lageröversikt</h2>
         <button onclick="loadStockTable()"
-          class="text-xs text-slate-500 hover:text-white transition-colors px-2 py-1 rounded hover:bg-slate-700">
+          class="text-xs text-slate-500 hover:text-white transition-colors px-2 py-1 hover:bg-slate-700">
           ↺ Uppdatera
         </button>
       </div>
       <div id="stockContainer" class="p-6">
         <p class="text-slate-600 text-sm text-center py-8">Ladda data för att se lagersaldo</p>
       </div>
-    </div>
+    </section>
 
   </main>
 </div>
@@ -265,7 +312,7 @@
 // Config & state
 // ============================================================
 const API = '';
-let token = localStorage.getItem('g_token');
+let token    = localStorage.getItem('g_token');
 let chartInst = null;
 
 // ============================================================
@@ -277,6 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadProducts();
     loadRecommendations();
     loadStockTable();
+    loadExpiryTable();
   }
 
   document.getElementById('loginForm').addEventListener('submit', login);
@@ -299,7 +347,7 @@ async function login(e) {
   const btn      = document.getElementById('loginBtn');
   const errEl    = document.getElementById('loginError');
 
-  btn.textContent = 'Loggar in…';
+  btn.textContent = 'Loggar in...';
   btn.disabled    = true;
   errEl.classList.add('hidden');
 
@@ -318,6 +366,8 @@ async function login(e) {
     showDashboard();
     loadProducts();
     loadRecommendations();
+    loadStockTable();
+    loadExpiryTable();
   } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.remove('hidden');
@@ -377,20 +427,17 @@ async function loadProducts() {
 }
 
 // ============================================================
-// Upload
+// Sales upload
 // ============================================================
 function onFileSelected(input) {
-  const name = input.files[0]?.name || '';
-  document.getElementById('fileLabel').textContent = name || 'Välj fil…';
+  document.getElementById('fileLabel').textContent = input.files[0]?.name || 'Välj fil...';
 }
 
 async function uploadFile() {
   const file = document.getElementById('fileInput').files[0];
   if (!file) { showAlert('Välj en fil att ladda upp', 'error'); return; }
-
   const btn = document.getElementById('uploadBtn');
-  btn.textContent = 'Laddar…'; btn.disabled = true;
-
+  btn.textContent = 'Laddar...'; btn.disabled = true;
   try {
     const fd = new FormData();
     fd.append('file', file);
@@ -410,8 +457,7 @@ async function uploadFile() {
 
 async function generateDemo() {
   const btn = document.getElementById('demoBtn');
-  btn.textContent = 'Genererar…'; btn.disabled = true;
-
+  btn.textContent = 'Genererar...'; btn.disabled = true;
   try {
     const res  = await api('/api/demo', { method: 'POST' });
     const data = await res.json();
@@ -420,6 +466,7 @@ async function generateDemo() {
     await loadProducts();
     await loadRecommendations();
     await loadStockTable();
+    await loadExpiryTable();
   } catch (err) {
     showAlert(err.message, 'error');
   } finally {
@@ -468,19 +515,18 @@ async function loadForecast(name, days = 7) {
     document.getElementById('forecastPlaceholder').classList.add('hidden');
     document.getElementById('forecastContent').classList.remove('hidden');
 
-    // Update stat cards
     const stockEl = document.getElementById('sStock');
     if (fc.stock_initialized) {
-      stockEl.textContent  = fc.current_stock;
-      stockEl.className    = 'text-2xl font-bold text-white mt-1';
+      stockEl.textContent = fc.current_stock;
+      stockEl.className   = 'text-2xl font-bold text-white mt-1';
     } else {
-      stockEl.textContent  = 'Ej angivet';
-      stockEl.className    = 'text-lg font-semibold text-amber-400 mt-1';
+      stockEl.textContent = 'Ej angivet';
+      stockEl.className   = 'text-sm font-semibold text-amber-400 mt-1';
     }
 
     document.getElementById('dayLabelStat').textContent = fc.forecast_days || days;
     document.getElementById('sForecast').textContent    = fc.total_forecast;
-    document.getElementById('sOrder').textContent       = fc.order_quantity > 0 ? fc.order_quantity : '✓ OK';
+    document.getElementById('sOrder').textContent       = fc.order_quantity > 0 ? fc.order_quantity : 'OK';
 
     const daysEl = document.getElementById('sDays');
     if (fc.days_stock !== null && fc.days_stock !== undefined) {
@@ -492,7 +538,14 @@ async function loadForecast(name, days = 7) {
     }
 
     const badge = document.getElementById('methodBadge');
-    badge.textContent = fc.method === 'prophet' ? '🤖 Prophet AI + svenska helgdagar' : '📐 Glidande medelvärde';
+    const desc  = document.getElementById('methodDesc');
+    if (fc.method === 'prophet') {
+      badge.textContent = 'Prophet AI';
+      desc.textContent  = 'Prophet-modell med svenska helgdagar, 80% konfidensintervall';
+    } else {
+      badge.textContent = 'Glidande medelvärde';
+      desc.textContent  = 'Exponentiellt viktat glidande medelvärde med veckodag-faktorer';
+    }
 
     renderChart(sales, fc);
   } catch (err) {
@@ -504,16 +557,16 @@ function renderChart(sales, fc) {
   const ctx = document.getElementById('forecastChart').getContext('2d');
   if (chartInst) chartInst.destroy();
 
-  const hist    = sales.slice(-30);
-  const hDates  = hist.map(d => d.date);
-  const hVals   = hist.map(d => d.quantity);
-  const fDates  = fc.forecast.map(f => f.date);
-  const fPred   = fc.forecast.map(f => f.predicted);
-  const fUp     = fc.forecast.map(f => f.upper);
-  const fLow    = fc.forecast.map(f => f.lower);
+  const hist   = sales.slice(-30);
+  const hDates = hist.map(d => d.date);
+  const hVals  = hist.map(d => d.quantity);
+  const fDates = fc.forecast.map(f => f.date);
+  const fPred  = fc.forecast.map(f => f.predicted);
+  const fUp    = fc.forecast.map(f => f.upper);
+  const fLow   = fc.forecast.map(f => f.lower);
 
-  const labels  = [...hDates, ...fDates];
-  const pad     = hDates.map(() => null);
+  const labels = [...hDates, ...fDates];
+  const pad    = hDates.map(() => null);
 
   chartInst = new Chart(ctx, {
     type: 'bar',
@@ -524,8 +577,8 @@ function renderChart(sales, fc) {
           label: 'Historisk försäljning',
           type: 'bar',
           data: [...hVals, ...fDates.map(() => null)],
-          backgroundColor: 'rgba(59,130,246,0.35)',
-          borderColor: 'rgba(59,130,246,0.7)',
+          backgroundColor: 'rgba(59,130,246,0.30)',
+          borderColor: 'rgba(59,130,246,0.6)',
           borderWidth: 1,
           order: 10,
         },
@@ -534,7 +587,7 @@ function renderChart(sales, fc) {
           type: 'line',
           data: [...pad, ...fUp],
           borderColor: 'transparent',
-          backgroundColor: 'rgba(16,185,129,0.12)',
+          backgroundColor: 'rgba(59,130,246,0.10)',
           fill: '+1',
           pointRadius: 0,
           tension: 0.4,
@@ -545,7 +598,7 @@ function renderChart(sales, fc) {
           type: 'line',
           data: [...pad, ...fLow],
           borderColor: 'transparent',
-          backgroundColor: 'rgba(16,185,129,0.12)',
+          backgroundColor: 'rgba(59,130,246,0.10)',
           fill: false,
           pointRadius: 0,
           tension: 0.4,
@@ -555,11 +608,11 @@ function renderChart(sales, fc) {
           label: 'Prognos',
           type: 'line',
           data: [...pad, ...fPred],
-          borderColor: '#10b981',
+          borderColor: '#3b82f6',
           backgroundColor: 'transparent',
-          borderWidth: 2.5,
-          pointRadius: 4,
-          pointBackgroundColor: '#10b981',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#3b82f6',
           tension: 0.4,
           fill: false,
           order: 1,
@@ -573,9 +626,10 @@ function renderChart(sales, fc) {
       plugins: {
         legend: {
           labels: {
-            color: '#94a3b8',
+            color: '#64748b',
             filter: item => !item.text.includes('gräns'),
-            boxWidth: 12,
+            boxWidth: 10,
+            font: { size: 11, family: 'Inter' },
           },
         },
         tooltip: {
@@ -591,12 +645,12 @@ function renderChart(sales, fc) {
       },
       scales: {
         x: {
-          ticks: { color: '#64748b', maxRotation: 45, autoSkip: true, maxTicksLimit: 14 },
-          grid:  { color: 'rgba(100,116,139,0.12)' },
+          ticks: { color: '#475569', maxRotation: 45, autoSkip: true, maxTicksLimit: 14, font: { size: 10 } },
+          grid:  { color: 'rgba(71,85,105,0.15)' },
         },
         y: {
-          ticks: { color: '#64748b' },
-          grid:  { color: 'rgba(100,116,139,0.12)' },
+          ticks: { color: '#475569', font: { size: 11 } },
+          grid:  { color: 'rgba(71,85,105,0.15)' },
           beginAtZero: true,
         },
       },
@@ -605,19 +659,75 @@ function renderChart(sales, fc) {
 }
 
 // ============================================================
+// Expiry table
+// ============================================================
+async function loadExpiryTable() {
+  const c = document.getElementById('expiryContainer');
+  try {
+    const res  = await api('/api/expiry');
+    const data = await res.json();
+
+    if (!data.length) {
+      c.innerHTML = '<p class="text-slate-600 text-sm text-center py-8">Inga produkter med utgångsdatum inom 7 dagar</p>';
+      return;
+    }
+
+    c.innerHTML = `
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-slate-500 text-xs uppercase tracking-wider text-left border-b border-slate-700">
+              <th class="pb-3 pr-4 font-semibold">Produkt</th>
+              <th class="pb-3 pr-4 font-semibold">Utgångsdatum</th>
+              <th class="pb-3 pr-4 font-semibold text-right">Dagar kvar</th>
+              <th class="pb-3 pr-4 font-semibold text-right">Antal</th>
+              <th class="pb-3 font-semibold">Status</th>
+            </tr>
+          </thead>
+          <tbody id="expiryTbody" class="divide-y divide-slate-700/40"></tbody>
+        </table>
+      </div>`;
+
+    const tbody = document.getElementById('expiryTbody');
+    data.forEach((item, i) => {
+      const tr = document.createElement('tr');
+      const isCrit = item.urgency === 'critical';
+      tr.className = isCrit
+        ? 'bg-red-500/8 hover:bg-red-500/12'
+        : 'bg-yellow-500/5 hover:bg-yellow-500/10';
+      tr.innerHTML = `
+        <td class="py-3 pr-4 font-medium text-white">${item.product}</td>
+        <td class="py-3 pr-4 text-slate-300 font-mono text-xs">${item.expiry_date}</td>
+        <td class="py-3 pr-4 text-right font-semibold ${isCrit ? 'text-red-400' : 'text-yellow-400'}">${item.days_left}</td>
+        <td class="py-3 pr-4 text-right text-slate-300">${item.quantity}</td>
+        <td class="py-3">
+          <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 border ${isCrit ? 'bg-red-500/15 text-red-400 border-red-500/30' : 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30'}">
+            <span class="status-dot ${isCrit ? 'bg-red-500' : 'bg-yellow-400'}"></span>
+            ${isCrit ? 'Kritisk — sälj omedelbart' : 'Varning — sälj inom 7 dagar'}
+          </span>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+
+  } catch (err) {
+    c.innerHTML = `<p class="text-red-400 text-sm text-center py-8">Fel: ${err.message}</p>`;
+  }
+}
+
+// ============================================================
 // Recommendations
 // ============================================================
 async function loadRecommendations() {
   const c    = document.getElementById('recsContainer');
   const days = parseInt(document.getElementById('daySelect')?.value || '7', 10);
-  c.innerHTML = '<p class="text-slate-500 text-sm text-center py-6">Laddar…</p>';
+  c.innerHTML = '<p class="text-slate-500 text-sm text-center py-6">Laddar...</p>';
 
   try {
     const res  = await api(`/api/recommendations?days=${days}`);
     const data = await res.json();
 
     if (!data.length) {
-      c.innerHTML = '<p class="text-slate-600 text-sm text-center py-8">Inga produkter ännu — ladda upp data eller generera demo-data.</p>';
+      c.innerHTML = '<p class="text-slate-600 text-sm text-center py-8">Inga produkter — ladda upp data eller generera demo-data.</p>';
       return;
     }
 
@@ -626,13 +736,14 @@ async function loadRecommendations() {
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
-            <tr class="text-slate-500 text-xs uppercase tracking-wide text-left border-b border-slate-700">
-              <th class="pb-3 pr-4 font-medium">Status</th>
-              <th class="pb-3 pr-4 font-medium">Produkt</th>
-              <th class="pb-3 pr-4 font-medium text-right">Lager</th>
-              <th class="pb-3 pr-4 font-medium text-right">Prognos ${fDays}d</th>
-              <th class="pb-3 pr-4 font-medium text-right">Beställ</th>
-              <th class="pb-3 font-medium text-right">Lagerdagar</th>
+            <tr class="text-slate-500 text-xs uppercase tracking-wider text-left border-b border-slate-700">
+              <th class="pb-3 pr-3 font-semibold">Status</th>
+              <th class="pb-3 pr-4 font-semibold">Produkt</th>
+              <th class="pb-3 pr-4 font-semibold text-right">Lager</th>
+              <th class="pb-3 pr-4 font-semibold text-right">Prognos ${fDays}d</th>
+              <th class="pb-3 pr-4 font-semibold text-right">Beställ</th>
+              <th class="pb-3 pr-4 font-semibold text-right">Lagerdagar</th>
+              <th class="pb-3 font-semibold">Utgång</th>
             </tr>
           </thead>
           <tbody id="recsTbody" class="divide-y divide-slate-700/40"></tbody>
@@ -640,9 +751,10 @@ async function loadRecommendations() {
       </div>`;
 
     const tbody = document.getElementById('recsTbody');
-    data.forEach(item => {
+    data.forEach((item, i) => {
       const tr = document.createElement('tr');
-      tr.className = 'hover:bg-slate-700/20 transition-colors cursor-pointer';
+      const rowBg = i % 2 === 1 ? 'bg-slate-700/10' : '';
+      tr.className = `${rowBg} hover:bg-slate-700/20 transition-colors cursor-pointer`;
       tr.onclick   = () => {
         document.getElementById('productSelect').value = item.product;
         document.getElementById('stockInput').value    = item.current_stock;
@@ -650,25 +762,38 @@ async function loadRecommendations() {
         loadForecast(item.product, days);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
+
       const stockDisplay = item.stock_initialized
         ? item.current_stock
         : '<span class="text-amber-400 text-xs">Ej angivet</span>';
-      const daysDisplay = item.days_stock !== null && item.days_stock !== undefined
+
+      const daysDisplay = (item.days_stock !== null && item.days_stock !== undefined)
         ? `<span class="${statusColor(item.status)}">${item.days_stock}</span>`
         : '<span class="text-slate-500">–</span>';
+
+      // Expiry indicator
+      let expiryCell = '<span class="text-slate-600 text-xs">–</span>';
+      if (item.expiry_critical_qty > 0) {
+        expiryCell = `<span class="inline-flex items-center gap-1 text-xs text-red-400 font-medium"><span class="status-dot bg-red-500"></span>Sälj först (${item.expiry_critical_qty} st)</span>`;
+      } else if (item.expiry_warning_qty > 0) {
+        expiryCell = `<span class="inline-flex items-center gap-1 text-xs text-yellow-400"><span class="status-dot bg-yellow-400"></span>${item.expiry_warning_qty} st inom 7 dgr</span>`;
+      }
+
       tr.innerHTML = `
-        <td class="py-3 pr-4">
-          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusBadge(item.status)}">
-            ${statusIcon(item.status)} ${statusLabel(item.status)}
+        <td class="py-3 pr-3">
+          <span class="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium border ${statusBadge(item.status)}">
+            <span class="status-dot ${statusDotColor(item.status)}"></span>
+            ${statusLabel(item.status)}
           </span>
         </td>
         <td class="py-3 pr-4 font-medium text-white">${item.product}</td>
         <td class="py-3 pr-4 text-right text-slate-300">${stockDisplay}</td>
         <td class="py-3 pr-4 text-right text-slate-300">${item.total_forecast ?? '–'}</td>
         <td class="py-3 pr-4 text-right font-semibold ${item.order_quantity > 0 ? 'text-amber-400' : 'text-emerald-400'}">
-          ${item.order_quantity > 0 ? item.order_quantity : '✓'}
+          ${item.order_quantity > 0 ? item.order_quantity : 'OK'}
         </td>
-        <td class="py-3 text-right font-medium">${daysDisplay}</td>`;
+        <td class="py-3 pr-4 text-right font-medium">${daysDisplay}</td>
+        <td class="py-3">${expiryCell}</td>`;
       tbody.appendChild(tr);
     });
 
@@ -681,17 +806,14 @@ async function loadRecommendations() {
 // Stock upload
 // ============================================================
 function onStockFileSelected(input) {
-  const name = input.files[0]?.name || '';
-  document.getElementById('stockFileLabel').textContent = name || 'Välj Excel/CSV…';
+  document.getElementById('stockFileLabel').textContent = input.files[0]?.name || 'Välj fil...';
 }
 
 async function uploadStock() {
   const file = document.getElementById('stockFileInput').files[0];
   if (!file) { showAlert('Välj en lagerfil att ladda upp', 'error'); return; }
-
   const btn = document.getElementById('stockUploadBtn');
-  btn.textContent = 'Laddar…'; btn.disabled = true;
-
+  btn.textContent = 'Laddar...'; btn.disabled = true;
   try {
     const fd = new FormData();
     fd.append('file', file);
@@ -725,6 +847,49 @@ async function downloadTemplate() {
 }
 
 // ============================================================
+// Expiry upload
+// ============================================================
+function onExpiryFileSelected(input) {
+  document.getElementById('expiryFileLabel').textContent = input.files[0]?.name || 'Välj fil...';
+}
+
+async function uploadExpiry() {
+  const file = document.getElementById('expiryFileInput').files[0];
+  if (!file) { showAlert('Välj en fil med utgångsdatum', 'error'); return; }
+  const btn = document.getElementById('expiryUploadBtn');
+  btn.textContent = 'Laddar...'; btn.disabled = true;
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res  = await api('/api/upload-expiry', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showAlert(data.message, 'success');
+    await loadExpiryTable();
+    await loadRecommendations();
+  } catch (err) {
+    showAlert(err.message, 'error');
+  } finally {
+    btn.textContent = 'Uppdatera'; btn.disabled = false;
+  }
+}
+
+async function downloadExpiryTemplate() {
+  try {
+    const res = await api('/api/expiry-template');
+    if (!res.ok) { showAlert('Kunde inte ladda ner mallen', 'error'); return; }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'utgangsdatum_mall.xlsx';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  } catch (err) {
+    showAlert(err.message, 'error');
+  }
+}
+
+// ============================================================
 // Stock overview table
 // ============================================================
 async function loadStockTable() {
@@ -733,7 +898,7 @@ async function loadStockTable() {
     const data = await (await api('/api/products')).json();
 
     if (!data.length) {
-      c.innerHTML = '<p class="text-slate-600 text-sm text-center py-8">Inga produkter ännu.</p>';
+      c.innerHTML = '<p class="text-slate-600 text-sm text-center py-8">Inga produkter.</p>';
       return;
     }
 
@@ -741,10 +906,10 @@ async function loadStockTable() {
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
-            <tr class="text-slate-500 text-xs uppercase tracking-wide text-left border-b border-slate-700">
-              <th class="pb-3 pr-4 font-medium">Produkt</th>
-              <th class="pb-3 pr-4 font-medium text-right">Lagersaldo (st)</th>
-              <th class="pb-3 font-medium text-right">Ändra &amp; spara</th>
+            <tr class="text-slate-500 text-xs uppercase tracking-wider text-left border-b border-slate-700">
+              <th class="pb-3 pr-4 font-semibold">Produkt</th>
+              <th class="pb-3 pr-4 font-semibold text-right">Lagersaldo</th>
+              <th class="pb-3 font-semibold text-right">Andra och spara</th>
             </tr>
           </thead>
           <tbody id="stockTbody" class="divide-y divide-slate-700/40"></tbody>
@@ -752,12 +917,12 @@ async function loadStockTable() {
       </div>`;
 
     const tbody = document.getElementById('stockTbody');
-    data.forEach(p => {
+    data.forEach((p, i) => {
       const safeId = 'si_' + p.name.replace(/[^a-zA-Z0-9_-]/g, '_');
       const tr = document.createElement('tr');
-      tr.className = 'hover:bg-slate-700/10 transition-colors';
+      const rowBg = i % 2 === 1 ? 'bg-slate-700/10' : '';
+      tr.className = `${rowBg} hover:bg-slate-700/15 transition-colors`;
 
-      // Format stock_updated_at timestamp
       let updatedStr = '';
       if (p.stock_updated_at) {
         try {
@@ -770,7 +935,7 @@ async function loadStockTable() {
       const stockBadge = p.stock_initialized
         ? `<span class="text-slate-300 font-mono">${p.stock}</span>
            ${updatedStr ? `<span class="block text-xs text-slate-600 mt-0.5">Uppdaterad: ${updatedStr}</span>` : ''}`
-        : `<span class="text-amber-400 text-xs font-medium">Lager ej angivet</span>`;
+        : `<span class="text-amber-400 text-xs font-medium">Ej angivet</span>`;
 
       tr.innerHTML = `
         <td class="py-3 pr-4 font-medium text-white">${p.name}</td>
@@ -780,9 +945,9 @@ async function loadStockTable() {
             <input type="number" value="${p.stock_initialized ? p.stock : ''}" min="0"
               placeholder="${p.stock_initialized ? '' : 'Ange lager'}"
               id="${safeId}"
-              class="w-24 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-sm text-right focus:outline-none focus:ring-1 focus:ring-violet-500">
+              class="w-24 bg-slate-700 border border-slate-600 px-2 py-1 text-white text-sm text-right focus:outline-none focus:ring-1 focus:ring-blue-600">
             <button onclick="updateSingleStock('${p.name.replace(/'/g, "\\'")}')"
-              class="text-xs bg-violet-600 hover:bg-violet-500 text-white px-2.5 py-1 rounded transition-colors whitespace-nowrap">
+              class="text-xs bg-slate-600 hover:bg-slate-500 text-white px-3 py-1 border border-slate-500 transition-colors whitespace-nowrap">
               Spara
             </button>
           </div>
@@ -798,11 +963,9 @@ async function loadStockTable() {
 async function updateSingleStock(name) {
   const safeId = 'si_' + name.replace(/[^a-zA-Z0-9_-]/g, '_');
   const input  = document.getElementById(safeId);
-  const dispEl = document.getElementById('disp_' + safeId);
   if (!input) return;
   const stock = parseInt(input.value, 10);
   if (isNaN(stock) || stock < 0) { showAlert('Ogiltigt lagervärde', 'error'); return; }
-
   try {
     const res = await api(`/api/stock/${encodeURIComponent(name)}`, {
       method: 'PUT',
@@ -810,9 +973,9 @@ async function updateSingleStock(name) {
       body: JSON.stringify({ stock }),
     });
     if (!res.ok) throw new Error((await res.json()).error);
-    if (dispEl) dispEl.textContent = stock;
-    showAlert(`✓ Lager uppdaterat: ${name} → ${stock} st`, 'success');
+    showAlert(`Lager uppdaterat: ${name} — ${stock} st`, 'success');
     await loadRecommendations();
+    await loadStockTable();
   } catch (err) {
     showAlert(err.message, 'error');
   }
@@ -824,10 +987,10 @@ async function updateSingleStock(name) {
 function showAlert(msg, type) {
   const el = document.getElementById('alert');
   const isOk = type === 'success';
-  el.textContent = (isOk ? '✓ ' : '✕ ') + msg;
-  el.className   = `rounded-lg px-4 py-3 text-sm flex items-start gap-2 ${
-    isOk ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
-          : 'bg-red-500/15 border border-red-500/30 text-red-400'}`;
+  el.textContent = msg;
+  el.className   = `px-4 py-3 text-sm flex items-start gap-2 border ${
+    isOk ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+         : 'bg-red-500/10 border-red-500/30 text-red-400'}`;
   el.classList.remove('hidden');
   clearTimeout(el._t);
   el._t = setTimeout(() => el.classList.add('hidden'), 6000);
@@ -835,38 +998,56 @@ function showAlert(msg, type) {
 
 function statusBadge(s) {
   return {
-    urgent:  'bg-red-500/20 text-red-400 border-red-500/30',
-    soon:    'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    plan:    'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-    unknown: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
-  }[s] || 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+    urgent:  'bg-red-500/15 text-red-400 border-red-500/30',
+    soon:    'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
+    plan:    'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    unknown: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+  }[s] || 'bg-slate-500/15 text-slate-400 border-slate-500/30';
 }
+
+function statusDotColor(s) {
+  return {
+    urgent:  'bg-red-500',
+    soon:    'bg-yellow-400',
+    plan:    'bg-emerald-500',
+    unknown: 'bg-slate-500',
+  }[s] || 'bg-slate-500';
+}
+
 function statusColor(s) {
-  return { urgent: 'text-red-400', soon: 'text-yellow-400', plan: 'text-emerald-400', unknown: 'text-slate-400' }[s] || 'text-slate-400';
+  return {
+    urgent:  'text-red-400',
+    soon:    'text-yellow-400',
+    plan:    'text-emerald-400',
+    unknown: 'text-slate-400',
+  }[s] || 'text-slate-400';
 }
+
 function statusLabel(s) {
-  return { urgent: 'Brådskande', soon: 'Snart', plan: 'Planera', unknown: 'Lager okänt' }[s] || s;
-}
-function statusIcon(s) {
-  return { urgent: '🔴', soon: '🟡', plan: '🟢', unknown: '⚪' }[s] || '⚪';
+  return {
+    urgent:  'Bradskande',
+    soon:    'Snart',
+    plan:    'Planera',
+    unknown: 'Lager okant',
+  }[s] || s;
 }
 
 async function exportRecommendations() {
   const days = parseInt(document.getElementById('daySelect')?.value || '7', 10);
   const btn  = document.getElementById('exportBtn');
   const orig = btn.textContent;
-  btn.textContent = 'Förbereder…'; btn.disabled = true;
+  btn.textContent = 'Förbereder...'; btn.disabled = true;
   try {
     const res = await api(`/api/export?days=${days}`);
     if (!res.ok) { showAlert('Export misslyckades', 'error'); return; }
     const blob = await res.blob();
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    a.href = url; a.download = `bestallningslista_${date}_${days}d.xlsx`;
+    const d    = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    a.href = url; a.download = `bestallningslista_${d}_${days}d.xlsx`;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
-    showAlert(`Excel-fil nedladdad (${days}-dagarsprognos)`, 'success');
+    showAlert(`Excel-fil exporterad (${days}-dagarsprognos)`, 'success');
   } catch (err) {
     showAlert(err.message, 'error');
   } finally {
