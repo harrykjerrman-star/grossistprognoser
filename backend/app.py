@@ -234,12 +234,17 @@ def demo():
         return jsonify({"error": str(exc)}), 500
 
 
+
+@app.get("/")
+def index():
+    import os
+    from flask import send_file
+    path = os.path.join(os.path.dirname(__file__), "..", "frontend", "index.html")
+    return send_file(os.path.abspath(path))
+
 if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=False, host="0.0.0.0", port=port)
   
-@app.get("/")  
-def index():  
-    from flask import send_file  
-    return send_file("../frontend/index.html") 
+@app.get("/")      return send_file("../frontend/index.html") 
