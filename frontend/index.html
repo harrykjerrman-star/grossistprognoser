@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grossistprognoser</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    [x-cloak] { display: none; }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+
+<!-- ===================== LOGIN SCREEN ===================== -->
+<div id="loginScreen" class="fixed inset-0 flex items-center justify-center bg-slate-900 z-50">
+  <div class="bg-slate-800 rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4 border border-slate-700">
+    <div class="text-center mb-8">
+      <div class="text-5xl mb-3">📦</div>
+      <h1 class="text-2xl font-bold text-white">Grossistprognoser</h1>
+      <p class="text-slate-400 mt-1 text-sm">AI-baserade beställningsrekommendationer</p>
+    </div>
+
+    <div id="loginError" class="hidden bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg p-3 mb-4 text-sm"></div>
+
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">E-postadress</label>
+        <input type="email" id="loginEmail" value="demo@grossist.se"
+          class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Lösenord</label>
+        <input type="password" id="loginPassword" value="demo123"
+          class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+      </div>
+      <button type="submit" id="loginBtn"
+        class="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors text-sm">
+        Logga in
+      </button>
+    </form>
+
+    <p class="text-center text-slate-600 text-xs mt-6">
+      Demo: <span class="text-slate-500">demo@grossist.se</span> / <span class="text-slate-500">demo123</span>
+    </p>
+  </div>
+</div>
+
+<!-- ===================== DASHBOARD ===================== -->
+<div id="dashboard" class="hidden min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex-shrink-0">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">📦</span>
+        <div>
+          <h1 class="font-bold text-white leading-none">Grossistprognoser</h1>
+          <p class="text-xs text-slate-500 mt-0.5" id="headerEmail"></p>
+        </div>
+      </div>
+      <button onclick="logout()"
+        class="text-sm text-slate-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-slate-700 transition-colors">
+        Logga ut
+      </button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-7xl mx-auto w-full px-6 py-8 flex-1 space-y-6">
+
+    <!-- Alert -->
+    <div id="alert" class="hidden rounded-lg px-4 py-3 text-sm flex items-center gap-2"></div>
+
+    <!-- Top cards: Upload + Demo -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+      <!-- Upload -->
+      <div class="bg-slate-800 rounded-xl p-6 border border-slate-700">
+        <h2 class="font-semibold text-white mb-1 flex items-center gap-2">
+          <span>📤</span> Ladda upp försäljningsdata
+        </h2>
+        <p class="text-xs text-slate-500 mb-4">
+          CSV eller Excel med kolumner: <code class="text-blue-400">vara, datum, antal</code>
+        </p>
+        <div class="flex gap-2">
+          <label class="flex-1 cursor-pointer">
+            <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" class="hidden" onchange="onFileSelected(this)">
+            <div id="fileLabel" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg px-3 py-2.5 text-center text-sm text-slate-400 transition-colors truncate">
+              Välj fil...
+            </div>
+          </label>
+          <button id="uploadBtn" onclick="uploadFile()"
+            class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
+            Ladda upp
+          </button>
+        </div>
+      </div>
+
+      <!-- Demo -->
+      <div class="bg-slate-800 rounded-xl p-6 border border-slate-700">
+        <h2 class="font-semibold text-white mb-1 flex items-center gap-2">
+          <span>🎲</span> Generera demo-data
+        </h2>
+        <p class="text-xs text-slate-500 mb-4">
+          90 dagars realistisk försäljning för 7 produkter med vecko- och säsongsvariationer.
+          <span class="text-amber-400">Ersätter befintlig data.</span>
+        </p>
+        <button id="demoBtn" onclick="generateDemo()"
+          class="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
+          Generera demo-data
+        </button>
+      </div>
+    </div>
+
+    <!-- Forecast section -->
+    <div class="bg-slate-800 rounded-xl border border-slate-700">
+      <div class="px-6 py-5 border-b border-slate-700">
+        <h2 class="font-semibold text-white mb-4 flex items-center gap-2">
+          <span>📈</span> Prognos per produkt
+        </h2>
+        <div class="flex flex-wrap gap-3 items-end">
+          <div class="flex-1 min-w-44">
+            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wide">Produkt</label>
+            <select id="productSelect"
+              class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">-- Välj produkt --</option>
+            </select>
+          </div>
+          <div class="w-36">
+            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wide">Lager (st)</label>
+            <input type="number" id="stockInput" min="0" placeholder="Nuvarande"
+              class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <button onclick="loadForecastForSelected()"
+            class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors">
+            Visa prognos
+          </button>
+        </div>
+      </div>
+
+      <div class="p-6">
+        <!-- Placeholder -->
+        <div id="forecastPlaceholder" class="flex flex-col items-center justify-center h-56 text-slate-600">
+          <span class="text-4xl mb-3">📊</span>
+          <p class="text-sm">Välj en produkt ovan för att se 7-dagarsprognos</p>
+        </div>
+
+        <!-- Forecast content -->
+        <div id="forecastContent" class="hidden">
+          <!-- Stat cards -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-slate-700/50 rounded-lg p-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wide">Nuv. lager</p>
+              <p class="text-2xl font-bold text-white mt-1" id="sStock">–</p>
+            </div>
+            <div class="bg-slate-700/50 rounded-lg p-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wide">Prognos 7 dgr</p>
+              <p class="text-2xl font-bold text-white mt-1" id="sForecast">–</p>
+            </div>
+            <div class="bg-slate-700/50 rounded-lg p-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wide">Beställ</p>
+              <p class="text-2xl font-bold text-amber-400 mt-1" id="sOrder">–</p>
+            </div>
+            <div class="bg-slate-700/50 rounded-lg p-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wide">Lagerdagar</p>
+              <p class="text-2xl font-bold mt-1" id="sDays">–</p>
+            </div>
+          </div>
+
+          <!-- Method badge -->
+          <div class="flex items-center gap-2 mb-4">
+            <span id="methodBadge" class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-400"></span>
+            <span class="text-xs text-slate-600">Prognos 7 dagar framåt med 80% konfidensintervall</span>
+          </div>
+
+          <!-- Chart -->
+          <div class="relative h-72">
+            <canvas id="forecastChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="bg-slate-800 rounded-xl border border-slate-700">
+      <div class="px-6 py-5 border-b border-slate-700 flex items-center justify-between">
+        <h2 class="font-semibold text-white flex items-center gap-2">
+          <span>🛒</span> Beställningsrekommendationer
+        </h2>
+        <button onclick="loadRecommendations()"
+          class="text-xs text-slate-500 hover:text-white transition-colors px-2 py-1 rounded hover:bg-slate-700">
+          ↺ Uppdatera
+        </button>
+      </div>
+      <div id="recsContainer" class="p-6">
+        <p class="text-slate-600 text-sm text-center py-8">Ladda data för att se rekommendationer</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ============================================================
+// Config & state
+// ============================================================
+const API = 'http://localhost:5000';
+let token = localStorage.getItem('g_token');
+let chartInst = null;
+
+// ============================================================
+// Init
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  if (token) {
+    showDashboard();
+    loadProducts();
+    loadRecommendations();
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', login);
+
+  document.getElementById('productSelect').addEventListener('change', function () {
+    const opt = this.options[this.selectedIndex];
+    if (opt.dataset.stock !== undefined) {
+      document.getElementById('stockInput').value = opt.dataset.stock;
+    }
+  });
+});
+
+// ============================================================
+// Auth
+// ============================================================
+async function login(e) {
+  e.preventDefault();
+  const email    = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  const btn      = document.getElementById('loginBtn');
+  const errEl    = document.getElementById('loginError');
+
+  btn.textContent = 'Loggar in…';
+  btn.disabled    = true;
+  errEl.classList.add('hidden');
+
+  try {
+    const res  = await fetch(`${API}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    token = data.token;
+    localStorage.setItem('g_token', token);
+    localStorage.setItem('g_email', data.email);
+    showDashboard();
+    loadProducts();
+    loadRecommendations();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.textContent = 'Logga in';
+    btn.disabled    = false;
+  }
+}
+
+function logout() {
+  localStorage.removeItem('g_token');
+  localStorage.removeItem('g_email');
+  token = null;
+  document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+}
+
+function showDashboard() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('headerEmail').textContent =
+    localStorage.getItem('g_email') || '';
+}
+
+// ============================================================
+// API helper
+// ============================================================
+async function api(path, opts = {}) {
+  const res = await fetch(`${API}${path}`, {
+    ...opts,
+    headers: { Authorization: `Bearer ${token}`, ...opts.headers },
+  });
+  if (res.status === 401) { logout(); throw new Error('Session upphörde'); }
+  return res;
+}
+
+// ============================================================
+// Products
+// ============================================================
+async function loadProducts() {
+  try {
+    const data = await (await api('/api/products')).json();
+    const sel  = document.getElementById('productSelect');
+    sel.innerHTML = '<option value="">-- Välj produkt --</option>';
+    data.forEach(p => {
+      const o = document.createElement('option');
+      o.value         = p.name;
+      o.textContent   = p.name;
+      o.dataset.stock = p.stock;
+      sel.appendChild(o);
+    });
+    if (data.length) {
+      sel.value = data[0].name;
+      document.getElementById('stockInput').value = data[0].stock;
+    }
+  } catch (_) {}
+}
+
+// ============================================================
+// Upload
+// ============================================================
+function onFileSelected(input) {
+  const name = input.files[0]?.name || '';
+  document.getElementById('fileLabel').textContent = name || 'Välj fil…';
+}
+
+async function uploadFile() {
+  const file = document.getElementById('fileInput').files[0];
+  if (!file) { showAlert('Välj en fil att ladda upp', 'error'); return; }
+
+  const btn = document.getElementById('uploadBtn');
+  btn.textContent = 'Laddar…'; btn.disabled = true;
+
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res  = await api('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showAlert(data.message, 'success');
+    await loadProducts();
+    await loadRecommendations();
+  } catch (err) {
+    showAlert(err.message, 'error');
+  } finally {
+    btn.textContent = 'Ladda upp'; btn.disabled = false;
+  }
+}
+
+async function generateDemo() {
+  const btn = document.getElementById('demoBtn');
+  btn.textContent = 'Genererar…'; btn.disabled = true;
+
+  try {
+    const res  = await api('/api/demo', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showAlert(data.message, 'success');
+    await loadProducts();
+    await loadRecommendations();
+  } catch (err) {
+    showAlert(err.message, 'error');
+  } finally {
+    btn.textContent = 'Generera demo-data'; btn.disabled = false;
+  }
+}
+
+// ============================================================
+// Forecast
+// ============================================================
+async function loadForecastForSelected() {
+  const name  = document.getElementById('productSelect').value;
+  const stock = document.getElementById('stockInput').value;
+  if (!name) { showAlert('Välj en produkt', 'error'); return; }
+
+  if (stock !== '') {
+    try {
+      await api(`/api/stock/${encodeURIComponent(name)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stock: parseInt(stock, 10) }),
+      });
+    } catch (_) {}
+  }
+
+  await loadForecast(name);
+}
+
+async function loadForecast(name) {
+  try {
+    const [salesRes, fcRes] = await Promise.all([
+      api(`/api/sales/${encodeURIComponent(name)}`),
+      api(`/api/forecast/${encodeURIComponent(name)}`),
+    ]);
+
+    if (!fcRes.ok) {
+      const e = await fcRes.json();
+      showAlert(e.error || 'Kunde inte ladda prognos', 'error');
+      return;
+    }
+
+    const sales = await salesRes.json();
+    const fc    = await fcRes.json();
+
+    document.getElementById('forecastPlaceholder').classList.add('hidden');
+    document.getElementById('forecastContent').classList.remove('hidden');
+
+    document.getElementById('sStock').textContent    = fc.current_stock;
+    document.getElementById('sForecast').textContent = fc.total_forecast_7d;
+    document.getElementById('sOrder').textContent    =
+      fc.order_quantity > 0 ? fc.order_quantity : '✓ OK';
+
+    const daysEl = document.getElementById('sDays');
+    daysEl.textContent  = fc.days_stock;
+    daysEl.className    = 'text-2xl font-bold mt-1 ' + statusColor(fc.status);
+
+    const badge = document.getElementById('methodBadge');
+    badge.textContent = fc.method === 'prophet' ? '🤖 Prophet AI' : '📐 Glidande medelvärde';
+
+    renderChart(sales, fc);
+  } catch (err) {
+    showAlert('Fel: ' + err.message, 'error');
+  }
+}
+
+function renderChart(sales, fc) {
+  const ctx = document.getElementById('forecastChart').getContext('2d');
+  if (chartInst) chartInst.destroy();
+
+  const hist    = sales.slice(-30);
+  const hDates  = hist.map(d => d.date);
+  const hVals   = hist.map(d => d.quantity);
+  const fDates  = fc.forecast.map(f => f.date);
+  const fPred   = fc.forecast.map(f => f.predicted);
+  const fUp     = fc.forecast.map(f => f.upper);
+  const fLow    = fc.forecast.map(f => f.lower);
+
+  const labels  = [...hDates, ...fDates];
+  const pad     = hDates.map(() => null);
+
+  chartInst = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Historisk försäljning',
+          type: 'bar',
+          data: [...hVals, ...fDates.map(() => null)],
+          backgroundColor: 'rgba(59,130,246,0.35)',
+          borderColor: 'rgba(59,130,246,0.7)',
+          borderWidth: 1,
+          order: 10,
+        },
+        {
+          label: 'Övre gräns',
+          type: 'line',
+          data: [...pad, ...fUp],
+          borderColor: 'transparent',
+          backgroundColor: 'rgba(16,185,129,0.12)',
+          fill: '+1',
+          pointRadius: 0,
+          tension: 0.4,
+          order: 4,
+        },
+        {
+          label: 'Nedre gräns',
+          type: 'line',
+          data: [...pad, ...fLow],
+          borderColor: 'transparent',
+          backgroundColor: 'rgba(16,185,129,0.12)',
+          fill: false,
+          pointRadius: 0,
+          tension: 0.4,
+          order: 4,
+        },
+        {
+          label: 'Prognos',
+          type: 'line',
+          data: [...pad, ...fPred],
+          borderColor: '#10b981',
+          backgroundColor: 'transparent',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointBackgroundColor: '#10b981',
+          tension: 0.4,
+          fill: false,
+          order: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: {
+            color: '#94a3b8',
+            filter: item => !item.text.includes('gräns'),
+            boxWidth: 12,
+          },
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              if (ctx.dataset.label?.includes('gräns')) return null;
+              const v = ctx.parsed.y;
+              if (v === null || v === undefined) return null;
+              return ` ${ctx.dataset.label}: ${v.toFixed(0)}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#64748b', maxRotation: 45, autoSkip: true, maxTicksLimit: 14 },
+          grid:  { color: 'rgba(100,116,139,0.12)' },
+        },
+        y: {
+          ticks: { color: '#64748b' },
+          grid:  { color: 'rgba(100,116,139,0.12)' },
+          beginAtZero: true,
+        },
+      },
+    },
+  });
+}
+
+// ============================================================
+// Recommendations
+// ============================================================
+async function loadRecommendations() {
+  const c = document.getElementById('recsContainer');
+  c.innerHTML = '<p class="text-slate-500 text-sm text-center py-6">Laddar…</p>';
+
+  try {
+    const res  = await api('/api/recommendations');
+    const data = await res.json();
+
+    if (!data.length) {
+      c.innerHTML = '<p class="text-slate-600 text-sm text-center py-8">Inga produkter ännu — ladda upp data eller generera demo-data.</p>';
+      return;
+    }
+
+    c.innerHTML = `
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-slate-500 text-xs uppercase tracking-wide text-left border-b border-slate-700">
+              <th class="pb-3 pr-4 font-medium">Status</th>
+              <th class="pb-3 pr-4 font-medium">Produkt</th>
+              <th class="pb-3 pr-4 font-medium text-right">Lager</th>
+              <th class="pb-3 pr-4 font-medium text-right">Prognos 7d</th>
+              <th class="pb-3 pr-4 font-medium text-right">Beställ</th>
+              <th class="pb-3 font-medium text-right">Lagerdagar</th>
+            </tr>
+          </thead>
+          <tbody id="recsTbody" class="divide-y divide-slate-700/40"></tbody>
+        </table>
+      </div>`;
+
+    const tbody = document.getElementById('recsTbody');
+    data.forEach(item => {
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-700/20 transition-colors cursor-pointer';
+      tr.onclick   = () => {
+        document.getElementById('productSelect').value = item.product;
+        document.getElementById('stockInput').value    = item.current_stock;
+        loadForecast(item.product);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+      tr.innerHTML = `
+        <td class="py-3 pr-4">
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusBadge(item.status)}">
+            ${statusIcon(item.status)} ${statusLabel(item.status)}
+          </span>
+        </td>
+        <td class="py-3 pr-4 font-medium text-white">${item.product}</td>
+        <td class="py-3 pr-4 text-right text-slate-300">${item.current_stock}</td>
+        <td class="py-3 pr-4 text-right text-slate-300">${item.total_forecast_7d ?? '–'}</td>
+        <td class="py-3 pr-4 text-right font-semibold ${item.order_quantity > 0 ? 'text-amber-400' : 'text-emerald-400'}">
+          ${item.order_quantity > 0 ? item.order_quantity : '✓'}
+        </td>
+        <td class="py-3 text-right font-medium ${statusColor(item.status)}">${item.days_stock}</td>`;
+      tbody.appendChild(tr);
+    });
+
+  } catch (err) {
+    c.innerHTML = `<p class="text-red-400 text-sm text-center py-8">Fel: ${err.message}</p>`;
+  }
+}
+
+// ============================================================
+// Helpers
+// ============================================================
+function showAlert(msg, type) {
+  const el = document.getElementById('alert');
+  const isOk = type === 'success';
+  el.textContent = (isOk ? '✓ ' : '✕ ') + msg;
+  el.className   = `rounded-lg px-4 py-3 text-sm flex items-start gap-2 ${
+    isOk ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+          : 'bg-red-500/15 border border-red-500/30 text-red-400'}`;
+  el.classList.remove('hidden');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.add('hidden'), 6000);
+}
+
+function statusBadge(s) {
+  return { urgent: 'bg-red-500/20 text-red-400 border-red-500/30',
+           soon:   'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+           plan:   'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' }[s] || '';
+}
+function statusColor(s) {
+  return { urgent: 'text-red-400', soon: 'text-yellow-400', plan: 'text-emerald-400' }[s] || 'text-slate-400';
+}
+function statusLabel(s) {
+  return { urgent: 'Brådskande', soon: 'Snart', plan: 'Planera' }[s] || s;
+}
+function statusIcon(s) {
+  return { urgent: '🔴', soon: '🟡', plan: '🟢' }[s] || '⚪';
+}
+</script>
+</body>
+</html>
