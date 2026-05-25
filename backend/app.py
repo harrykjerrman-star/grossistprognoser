@@ -22,7 +22,12 @@ try:
 except ImportError:
     HAS_REQUESTS = False
 
-import pdfplumber as _pdfplumber
+try:
+    import pdfplumber as _pdfplumber
+    HAS_PDFPLUMBER = True
+except ImportError:
+    _pdfplumber = None
+    HAS_PDFPLUMBER = False
 
 from database import get_connection, init_db
 from forecast import generate_demo_data, get_forecast
@@ -147,6 +152,8 @@ def _extract_delivery_text(file_obj, filename: str) -> tuple[str, list[list]]:
     tables: list[list] = []
 
     if fname.endswith(".pdf"):
+        if not HAS_PDFPLUMBER:
+            return "", []
         file_bytes = file_obj.read()
         with _pdfplumber.open(BytesIO(file_bytes)) as pdf:
             for page in pdf.pages:
