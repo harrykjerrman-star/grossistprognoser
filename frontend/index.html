@@ -197,6 +197,60 @@
   </div>
 </div>
 
+<!-- ===================== DELIVERY NOTE MODAL ===================== -->
+<div id="deliveryModal" class="hidden fixed inset-0 bg-black/75 z-40 flex items-center justify-center p-4">
+  <div class="bg-slate-800 border border-slate-600 w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl">
+    <div class="px-6 py-4 border-b border-slate-700 flex items-start justify-between flex-shrink-0">
+      <div>
+        <h2 class="text-sm font-semibold text-white uppercase tracking-wider">Följesedel — granska och bekräfta</h2>
+        <p class="text-xs text-slate-500 mt-0.5" id="deliveryFileInfo"></p>
+      </div>
+      <button onclick="closeDeliveryModal()" class="text-slate-500 hover:text-white text-xl ml-4">&times;</button>
+    </div>
+
+    <!-- Summary bar -->
+    <div id="deliverySummary" class="px-6 py-3 border-b border-slate-700 bg-slate-700/30 flex-shrink-0 flex flex-wrap gap-4 items-center text-xs">
+      <span class="text-slate-400">Parsade rader: <strong id="dTotal" class="text-white">0</strong></span>
+      <span class="text-slate-400">Matchade produkter: <strong id="dMatched" class="text-emerald-400">0</strong></span>
+      <span class="text-slate-400">Ej matchade: <strong id="dUnmatched" class="text-amber-400">0</strong></span>
+      <span class="text-slate-600 text-xs ml-auto">Avmarkera rader du inte vill lägga in. Justera kvantiteter vid behov.</span>
+    </div>
+
+    <!-- Table -->
+    <div class="overflow-y-auto flex-1 p-0">
+      <table class="w-full text-xs">
+        <thead class="sticky top-0 bg-slate-800 z-10">
+          <tr class="text-slate-500 text-xs uppercase tracking-wider border-b border-slate-700">
+            <th class="px-4 py-3 text-left w-8"><input type="checkbox" id="deliveryCheckAll" onchange="toggleAllDeliveryRows(this.checked)" class="accent-rose-700"></th>
+            <th class="px-3 py-3 text-left font-semibold">Parsad text</th>
+            <th class="px-3 py-3 text-left font-semibold">Kopplad produkt</th>
+            <th class="px-3 py-3 text-right font-semibold w-24">Antal</th>
+            <th class="px-3 py-3 text-left font-semibold w-20">Enhet</th>
+          </tr>
+        </thead>
+        <tbody id="deliveryTbody" class="divide-y divide-slate-700/40"></tbody>
+      </table>
+      <div id="deliveryEmpty" class="hidden p-10 text-center text-slate-600 text-sm">Inga rader hittades i dokumentet.</div>
+    </div>
+
+    <!-- Reference note + actions -->
+    <div class="px-6 py-4 border-t border-slate-700 flex-shrink-0 bg-slate-800 space-y-3">
+      <div class="flex gap-3 items-center">
+        <label class="text-xs text-slate-500 whitespace-nowrap">Referens (valfritt)</label>
+        <input type="text" id="deliveryNote" placeholder="t.ex. leverantör, fakturanr..."
+          class="flex-1 bg-slate-700 border border-slate-600 px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-rose-700">
+      </div>
+      <div class="flex gap-3 justify-end">
+        <button onclick="closeDeliveryModal()" class="text-sm text-slate-400 hover:text-white px-4 py-2 border border-slate-600 transition-colors">Avbryt</button>
+        <button id="deliveryApplyBtn" onclick="applyDeliveryNote()"
+          class="text-sm bg-rose-800 hover:bg-rose-700 text-white px-6 py-2 font-medium transition-colors">
+          Lägg till i förråd
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== MAIN APP ===================== -->
 <div id="dashboard" class="hidden min-h-screen flex flex-col">
 
@@ -343,6 +397,23 @@
           <button id="expiryUploadBtn" onclick="triggerUpload('expiry')" class="bg-rose-700 hover:bg-rose-600 text-white px-4 py-2 text-xs font-medium transition-colors whitespace-nowrap">Uppdatera</button>
         </div>
       </div>
+
+      <!-- Följesedel scan card -->
+      <div class="bg-slate-800 p-5 border border-teal-800/60">
+        <h3 class="text-sm font-semibold text-white mb-1">Scanna följesedel</h3>
+        <p class="text-xs text-slate-500 mb-1">Ladda upp PDF eller foto — appen läser av produkter och kvantiteter automatiskt.</p>
+        <p class="text-xs text-slate-600 mb-4">Format: PDF (rekommenderas), JPG, PNG</p>
+        <div class="flex gap-2">
+          <label class="flex-1 cursor-pointer">
+            <input type="file" id="deliveryFileInput" accept=".pdf,.jpg,.jpeg,.png" class="hidden"
+              onchange="onDeliveryFileChosen(this)">
+            <div id="deliveryFileLabel" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-3 py-2 text-center text-xs text-slate-400 transition-colors truncate">Välj fil...</div>
+          </label>
+          <button id="deliveryScanBtn" onclick="triggerDeliveryScan()"
+            class="bg-teal-700 hover:bg-teal-600 text-white px-4 py-2 text-xs font-medium transition-colors whitespace-nowrap">Scanna</button>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -1630,6 +1701,175 @@ function statusDotColor(s){return{urgent:'bg-red-500',soon:'bg-yellow-400',plan:
 function statusColor(s){return{urgent:'text-red-400',soon:'text-yellow-400',plan:'text-emerald-400',unknown:'text-slate-400'}[s]||'text-slate-400';}
 function statusLabel(s){return{urgent:'Bradskande',soon:'Snart',plan:'Planera',unknown:'Okant'}[s]||s;}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ============================================================
+// Delivery note (Följesedel)
+// ============================================================
+let _deliveryItems = [];   // parsed items from backend
+
+function onDeliveryFileChosen(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('deliveryFileLabel').textContent = file.name;
+}
+
+async function triggerDeliveryScan() {
+  const input = document.getElementById('deliveryFileInput');
+  const file  = input.files[0];
+  if (!file) { showAlert('Välj en fil först', 'error'); return; }
+
+  const btn  = document.getElementById('deliveryScanBtn');
+  const orig = btn.textContent;
+  btn.textContent = 'Läser...'; btn.disabled = true;
+
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res  = await api('/api/upload-delivery-note', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    _deliveryItems = data.items;
+    openDeliveryModal(file.name, data);
+  } catch(err) {
+    showAlert('Skanningsfel: ' + err.message, 'error');
+  } finally {
+    btn.textContent = orig; btn.disabled = false;
+  }
+}
+
+function openDeliveryModal(filename, data) {
+  document.getElementById('deliveryFileInfo').textContent =
+    `${filename} — ${data.total} rad${data.total !== 1 ? 'er' : ''} hittade`;
+  document.getElementById('dTotal').textContent    = data.total;
+  document.getElementById('dMatched').textContent  = data.matched;
+  document.getElementById('dUnmatched').textContent = data.unmatched;
+  document.getElementById('deliveryNote').value    = '';
+  document.getElementById('deliveryCheckAll').checked = true;
+
+  renderDeliveryItems(data.items);
+  document.getElementById('deliveryModal').classList.remove('hidden');
+}
+
+function closeDeliveryModal() {
+  document.getElementById('deliveryModal').classList.add('hidden');
+}
+
+function renderDeliveryItems(items) {
+  const tbody = document.getElementById('deliveryTbody');
+  const empty = document.getElementById('deliveryEmpty');
+  tbody.innerHTML = '';
+
+  if (!items.length) {
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  const prodOpts = _products.map(p =>
+    `<option value="${escHtml(p.name)}">${escHtml(p.name)}</option>`
+  ).join('');
+
+  items.forEach((item, idx) => {
+    const isMatched = !!item.matched_product;
+    const tr = document.createElement('tr');
+    tr.className = idx % 2 ? 'bg-slate-700/10' : '';
+
+    const productVal  = escHtml(item.matched_product || item.parsed_name || '');
+    const badgeCls    = isMatched
+      ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+      : 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+    const badgeText   = isMatched ? 'Matchad' : 'Manuell';
+
+    tr.innerHTML = `
+      <td class="px-4 py-2.5">
+        <input type="checkbox" class="delivery-row-cb accent-rose-700" data-idx="${idx}" checked>
+      </td>
+      <td class="px-3 py-2.5">
+        <span class="inline-flex items-center gap-1.5 text-xs px-1.5 py-0.5 border ${badgeCls} mb-1">${badgeText}</span>
+        <p class="text-slate-500 text-xs truncate max-w-xs" title="${escHtml(item.raw_text)}">${escHtml(item.parsed_name)}</p>
+      </td>
+      <td class="px-3 py-2.5">
+        <select class="delivery-prod w-full bg-slate-700 border border-slate-600 px-2 py-1 text-white text-xs
+                       focus:outline-none focus:ring-1 focus:ring-rose-700" data-idx="${idx}">
+          <option value="">-- Välj produkt --</option>
+          ${prodOpts}
+        </select>
+      </td>
+      <td class="px-3 py-2.5 text-right">
+        <input type="number" class="delivery-qty w-20 bg-slate-700 border border-slate-600 px-2 py-1 text-white
+                                    text-xs text-right focus:outline-none focus:ring-1 focus:ring-rose-700"
+               min="0.001" step="0.001" value="${item.quantity}" data-idx="${idx}">
+      </td>
+      <td class="px-3 py-2.5">
+        <select class="delivery-unit w-16 bg-slate-700 border border-slate-600 px-1 py-1 text-white text-xs
+                       focus:outline-none focus:ring-1 focus:ring-rose-700" data-idx="${idx}">
+          ${['st','kg','liter','dl','g','cl'].map(u =>
+            `<option${u === item.unit ? ' selected' : ''}>${u}</option>`).join('')}
+        </select>
+      </td>`;
+    tbody.appendChild(tr);
+
+    // Set matched product in the select
+    const sel = tr.querySelector('.delivery-prod');
+    if (productVal) {
+      const opt = Array.from(sel.options).find(o => o.value === (item.matched_product || ''));
+      if (opt) opt.selected = true;
+      else { // add as new option if not in list
+        const newOpt = new Option(productVal, productVal);
+        sel.add(newOpt); sel.value = productVal;
+      }
+    }
+  });
+}
+
+function toggleAllDeliveryRows(checked) {
+  document.querySelectorAll('.delivery-row-cb').forEach(cb => cb.checked = checked);
+}
+
+async function applyDeliveryNote() {
+  const note = document.getElementById('deliveryNote').value.trim();
+  const rows = [];
+
+  document.querySelectorAll('#deliveryTbody tr').forEach(tr => {
+    const cb   = tr.querySelector('.delivery-row-cb');
+    if (!cb || !cb.checked) return;
+    const idx  = parseInt(cb.dataset.idx);
+    const prod = tr.querySelector('.delivery-prod').value.trim();
+    const qty  = parseFloat(tr.querySelector('.delivery-qty').value);
+    const unit = tr.querySelector('.delivery-unit').value;
+    if (!prod || isNaN(qty) || qty <= 0) return;
+    rows.push({ product_name: prod, quantity: qty, unit });
+  });
+
+  if (!rows.length) { showAlert('Inga rader markerade', 'error'); return; }
+
+  const btn  = document.getElementById('deliveryApplyBtn');
+  const orig = btn.textContent;
+  btn.textContent = 'Sparar...'; btn.disabled = true;
+
+  try {
+    const res  = await api('/api/delivery-note/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: rows, note }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    closeDeliveryModal();
+    showAlert(data.message, 'success');
+    // Clear file input
+    document.getElementById('deliveryFileInput').value = '';
+    document.getElementById('deliveryFileLabel').textContent = 'Välj fil...';
+    await loadProducts();
+    await loadDashboard();
+  } catch(err) {
+    showAlert(err.message, 'error');
+  } finally {
+    btn.textContent = orig; btn.disabled = false;
+  }
+}
 
 // ============================================================
 // Zettle / Inställningar

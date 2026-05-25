@@ -3,10 +3,12 @@ import hashlib
 import json
 import math
 import os
+import re
 import secrets
 import threading
 import time
 from datetime import date, datetime, timedelta
+from difflib import get_close_matches
 from functools import wraps
 from io import BytesIO
 
@@ -19,6 +21,12 @@ try:
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
+
+try:
+    import pdfplumber as _pdfplumber
+    HAS_PDFPLUMBER = True
+except ImportError:
+    HAS_PDFPLUMBER = False
 
 from database import get_connection, init_db
 from forecast import generate_demo_data, get_forecast
@@ -126,6 +134,158 @@ def _resolve_col(df_columns, col_map, field, synonyms):
     if explicit and explicit in df_columns:
         return explicit
     return next((c for c in df_columns if c in synonyms), None)
+
+
+# ─────────────────────────────────────────
+# Delivery note (följesedel) parsing helpers
+# ─────────────────────────────────────────
+
+_UNIT_WORDS = {"st","kg","liter","l","dl","g","cl","förp","fp","krt","kartong","pack","pkt","lådor","låda"}
+_STOP_WORDS = _UNIT_WORDS | {"kr","sek","moms","inkl","exkl","art","artnr","nr","pris","á","sum","summa",
+                              "rabatt","netto","brutto","tot","totalt","belopp","inklmoms","excl","incl"}
+
+def _extract_delivery_text(file_obj, filename: str) -> tuple[str, list[list]]:
+    """Return (raw_text, tables) from a PDF or image file."""
+    fname = filename.lower()
+    raw_text = ""
+    tables: list[list] = []
+
+    if fname.endswith(".pdf"):
+        if not HAS_PDFPLUMBER:
+            return "", []
+        file_bytes = file_obj.read()
+        with _pdfplumber.open(BytesIO(file_bytes)) as pdf:
+            for page in pdf.pages:
+                # Try structured table extraction first
+                for tbl in (page.extract_tables() or []):
+                    clean = [[str(c).strip() if c else "" for c in row] for row in tbl if any(row)]
+                    if clean:
+                        tables.append(clean)
+                page_text = page.extract_text() or ""
+                raw_text += page_text + "\n"
+    else:
+        # Image: try pytesseract if available, otherwise return empty
+        try:
+            import pytesseract
+            from PIL import Image
+            img = Image.open(BytesIO(file_obj.read()))
+            raw_text = pytesseract.image_to_string(img, lang="swe+eng") or ""
+        except Exception:
+            raw_text = ""
+
+    return raw_text, tables
+
+
+def _parse_delivery_items(raw_text: str, tables: list[list], known_products: list[dict]) -> list[dict]:
+    """Parse delivery note text/tables into a list of candidate items."""
+    prod_names = [p["name"] for p in known_products]
+    results: list[dict] = []
+    seen_keys: set = set()
+
+    def _add(raw_line: str, name_guess: str, qty: float, unit: str) -> None:
+        key = (name_guess.lower(), round(qty, 3))
+        if key in seen_keys:
+            return
+        seen_keys.add(key)
+        matches = get_close_matches(name_guess, prod_names, n=1, cutoff=0.45)
+        matched = matches[0] if matches else None
+        # also try substring match if no fuzzy hit
+        if not matched:
+            ng_low = name_guess.lower()
+            for pn in prod_names:
+                if ng_low in pn.lower() or pn.lower() in ng_low:
+                    matched = pn; break
+        results.append({
+            "raw_text":       raw_line,
+            "parsed_name":    name_guess,
+            "matched_product": matched,
+            "quantity":       qty,
+            "unit":           unit,
+            "confidence":     "high" if matched else "low",
+        })
+
+    # ── 1. Try table rows first (most reliable) ──────────────────────────────
+    for table in tables:
+        for row in table:
+            # Skip obvious header rows
+            cell_text = " ".join(row)
+            if not cell_text.strip():
+                continue
+            lower_row = [c.lower() for c in row]
+            if any(h in lower_row for h in ["benämning","produkt","artikel","item","description","namn"]):
+                continue  # header row
+
+            # Find quantity cell: first cell that parses as a reasonable positive number
+            qty_val: float | None = None
+            qty_idx: int = -1
+            for i, cell in enumerate(row):
+                cleaned = cell.strip().replace(" ", "").replace(",", ".").replace("\xa0", "")
+                try:
+                    v = float(cleaned)
+                    if 0 < v <= 100_000:
+                        qty_val = v; qty_idx = i; break
+                except ValueError:
+                    pass
+
+            if qty_val is None:
+                continue
+
+            # Find name cell: longest text cell that isn't pure numbers
+            name_cell = max(
+                (c for i, c in enumerate(row) if i != qty_idx and c.strip() and not re.match(r"^[\d\s.,]+$", c)),
+                key=len, default=""
+            ).strip()
+            if len(name_cell) < 3:
+                continue
+
+            # Detect unit from any cell
+            unit = "st"
+            for cell in row:
+                m = re.search(r"\b(st|kg|liter|dl|g|cl|förp|fp|krt|kartong|pack|pkt)\b", cell, re.IGNORECASE)
+                if m:
+                    unit = m.group(1).lower(); break
+
+            _add(" | ".join(row), name_cell, qty_val, unit)
+
+    # ── 2. Fall back to line-by-line text parsing ─────────────────────────────
+    if not results and raw_text.strip():
+        for line in raw_text.splitlines():
+            line = line.strip()
+            if len(line) < 6:
+                continue
+
+            # Find numbers in line
+            nums = re.findall(r"\b(\d+(?:[.,]\d{1,3})?)\b", line)
+            candidates = []
+            for n in nums:
+                try:
+                    v = float(n.replace(",", "."))
+                    if 0 < v <= 100_000:
+                        candidates.append(v)
+                except ValueError:
+                    pass
+            if not candidates:
+                continue
+
+            # Use first reasonable number as quantity (skip article numbers at line start)
+            qty_val = candidates[0] if len(candidates) == 1 else (
+                candidates[1] if candidates[0] > 99999 else candidates[0]
+            )
+
+            # Strip numbers and stop-words to get product name
+            name_part = re.sub(r"\b\d+(?:[.,]\d+)?\b", " ", line)
+            name_part = re.sub(r"[^\w\s%/-]", " ", name_part)
+            words = [w for w in name_part.split() if w.lower() not in _STOP_WORDS and len(w) > 1]
+            name_guess = " ".join(words).strip()
+            if len(name_guess) < 3:
+                continue
+
+            unit_m = re.search(r"\b(st|kg|liter|dl|g|cl|förp|fp|krt|kartong|pack|pkt)\b", line, re.IGNORECASE)
+            unit = unit_m.group(1).lower() if unit_m else "st"
+
+            _add(line, name_guess, qty_val, unit)
+
+    return results
 
 
 def _expiry_info(product_id: int, conn) -> dict:
@@ -1527,6 +1687,123 @@ def demo():
         return jsonify({"success":True,"message":"Demo-data genererad (7 ingredienser, 90 dagar)"})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
+
+
+# ─────────────────────────────────────────
+# Delivery note (följesedel)
+# ─────────────────────────────────────────
+
+@app.post("/api/upload-delivery-note")
+@require_auth
+def upload_delivery_note():
+    if "file" not in request.files:
+        return jsonify({"error": "Ingen fil uppladdad"}), 400
+
+    f       = request.files["file"]
+    fname   = (f.filename or "").lower()
+    allowed = (".pdf", ".jpg", ".jpeg", ".png")
+    if not any(fname.endswith(ext) for ext in allowed):
+        return jsonify({"error": "Stödda format: PDF, JPG, PNG"}), 400
+
+    # Check capabilities
+    is_image = fname.endswith((".jpg", ".jpeg", ".png"))
+    if is_image:
+        has_ocr = False
+        try:
+            import pytesseract; has_ocr = True  # noqa: F401
+        except ImportError:
+            pass
+        if not has_ocr:
+            return jsonify({
+                "error": "OCR (pytesseract) saknas. Installera Tesseract + pytesseract, "
+                         "eller ladda upp PDF-versionen av följesedeln."
+            }), 400
+    elif not HAS_PDFPLUMBER:
+        return jsonify({
+            "error": "pdfplumber saknas. Kör: pip install pdfplumber och starta om servern."
+        }), 400
+
+    try:
+        raw_text, tables = _extract_delivery_text(f, f.filename or "")
+    except Exception as exc:
+        return jsonify({"error": f"Kunde inte läsa filen: {exc}"}), 500
+
+    if not raw_text.strip() and not tables:
+        return jsonify({"error": "Ingen text kunde extraheras ur filen. "
+                                  "Prova en annan fil eller ett digitalt skannat PDF-dokument."}), 400
+
+    conn    = get_connection()
+    products = [dict(r) for r in conn.execute(
+        "SELECT id, name FROM products ORDER BY name"
+    ).fetchall()]
+    conn.close()
+
+    items = _parse_delivery_items(raw_text, tables, products)
+
+    return jsonify({
+        "items":      items,
+        "total":      len(items),
+        "matched":    sum(1 for i in items if i["matched_product"]),
+        "unmatched":  sum(1 for i in items if not i["matched_product"]),
+        "has_text":   bool(raw_text.strip()),
+        "has_tables": bool(tables),
+    })
+
+
+@app.post("/api/delivery-note/apply")
+@require_auth
+def apply_delivery_note():
+    """Apply confirmed delivery note items: add quantities to current stock."""
+    body  = request.get_json(force=True) or {}
+    items = body.get("items", [])       # [{product_name, quantity, unit}]
+    note  = body.get("note", "")[:200]  # optional free-text reference
+
+    if not items:
+        return jsonify({"error": "Inga rader att spara"}), 400
+
+    conn    = get_connection()
+    cur     = conn.cursor()
+    updated = 0
+    created = 0
+    today   = date.today().isoformat()
+
+    for item in items:
+        pname = str(item.get("product_name", "")).strip()
+        qty   = float(item.get("quantity", 0))
+        if not pname or qty <= 0:
+            continue
+
+        # Ensure product exists
+        cur.execute("INSERT OR IGNORE INTO products (name) VALUES (?)", (pname,))
+        prod = cur.execute(
+            "SELECT id, current_stock, stock_initialized FROM products WHERE name=?", (pname,)
+        ).fetchone()
+        if not prod:
+            continue
+
+        new_stock = (prod["current_stock"] if prod["stock_initialized"] else 0) + qty
+        cur.execute(
+            "UPDATE products SET current_stock=?, stock_initialized=1, stock_updated_at=? WHERE id=?",
+            (new_stock, datetime.now().isoformat(), prod["id"])
+        )
+        # Log as a sales entry with negative quantity (inleverans = negative consumption)
+        cur.execute(
+            "INSERT INTO sales (product_id, date, quantity) VALUES (?, ?, ?)",
+            (prod["id"], today, -qty)   # negative = inleverans (delivery in)
+        )
+        if prod["stock_initialized"]:
+            updated += 1
+        else:
+            created += 1
+
+    conn.commit()
+    conn.close()
+
+    total = updated + created
+    msg = f"Följesedel inlagd: {total} rad{'er' if total != 1 else ''} uppdaterade i förrådet"
+    if note:
+        msg += f" ({note})"
+    return jsonify({"success": True, "message": msg, "updated": updated, "created": created})
 
 
 if __name__ == "__main__":
