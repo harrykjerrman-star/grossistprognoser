@@ -790,4 +790,11 @@ def demo():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(debug=False, host="0.0.0.0", port=port)
+    try:
+        from waitress import serve
+        print(f"Startar Waitress (produktion) på port {port} ...")
+        serve(app, host="0.0.0.0", port=port, threads=4)
+    except ImportError:
+        print("Waitress ej installerat — faller tillbaka på Flask dev-server.")
+        print("Installera med: pip install waitress")
+        app.run(debug=False, host="0.0.0.0", port=port)
