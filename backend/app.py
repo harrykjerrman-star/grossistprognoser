@@ -22,11 +22,7 @@ try:
 except ImportError:
     HAS_REQUESTS = False
 
-try:
-    import pdfplumber as _pdfplumber
-    HAS_PDFPLUMBER = True
-except ImportError:
-    HAS_PDFPLUMBER = False
+import pdfplumber as _pdfplumber
 
 from database import get_connection, init_db
 from forecast import generate_demo_data, get_forecast
@@ -151,8 +147,6 @@ def _extract_delivery_text(file_obj, filename: str) -> tuple[str, list[list]]:
     tables: list[list] = []
 
     if fname.endswith(".pdf"):
-        if not HAS_PDFPLUMBER:
-            return "", []
         file_bytes = file_obj.read()
         with _pdfplumber.open(BytesIO(file_bytes)) as pdf:
             for page in pdf.pages:
@@ -1718,10 +1712,6 @@ def upload_delivery_note():
                 "error": "OCR (pytesseract) saknas. Installera Tesseract + pytesseract, "
                          "eller ladda upp PDF-versionen av följesedeln."
             }), 400
-    elif not HAS_PDFPLUMBER:
-        return jsonify({
-            "error": "pdfplumber saknas. Kör: pip install pdfplumber och starta om servern."
-        }), 400
 
     try:
         raw_text, tables = _extract_delivery_text(f, f.filename or "")
