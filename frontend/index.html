@@ -159,6 +159,16 @@
             <input type="number" id="stockInput" min="0" placeholder="Nuvarande"
               class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
+          <div class="w-32">
+            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wide">Horisont</label>
+            <select id="daySelect"
+              class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="7" selected>7 dagar</option>
+              <option value="14">14 dagar</option>
+              <option value="30">30 dagar</option>
+              <option value="90">90 dagar</option>
+            </select>
+          </div>
           <button onclick="loadForecastForSelected()"
             class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors">
             Visa prognos
@@ -182,7 +192,7 @@
               <p class="text-2xl font-bold text-white mt-1" id="sStock">–</p>
             </div>
             <div class="bg-slate-700/50 rounded-lg p-4">
-              <p class="text-xs text-slate-500 uppercase tracking-wide">Prognos 7 dgr</p>
+              <p class="text-xs text-slate-500 uppercase tracking-wide">Prognos <span id="dayLabelStat">7</span> dgr</p>
               <p class="text-2xl font-bold text-white mt-1" id="sForecast">–</p>
             </div>
             <div class="bg-slate-700/50 rounded-lg p-4">
@@ -215,10 +225,16 @@
         <h2 class="font-semibold text-white flex items-center gap-2">
           <span>🛒</span> Beställningsrekommendationer
         </h2>
-        <button onclick="loadRecommendations()"
-          class="text-xs text-slate-500 hover:text-white transition-colors px-2 py-1 rounded hover:bg-slate-700">
-          ↺ Uppdatera
-        </button>
+        <div class="flex items-center gap-2">
+          <button onclick="exportRecommendations()" id="exportBtn"
+            class="text-xs bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+            ↓ Exportera Excel
+          </button>
+          <button onclick="loadRecommendations()"
+            class="text-xs text-slate-500 hover:text-white transition-colors px-2 py-1 rounded hover:bg-slate-700">
+            ↺ Uppdatera
+          </button>
+        </div>
       </div>
       <div id="recsContainer" class="p-6">
         <p class="text-slate-600 text-sm text-center py-8">Ladda data för att se rekommendationer</p>
@@ -417,6 +433,7 @@ async function generateDemo() {
 async function loadForecastForSelected() {
   const name  = document.getElementById('productSelect').value;
   const stock = document.getElementById('stockInput').value;
+  const days  = parseInt(document.getElementById('daySelect').value, 10) || 7;
   if (!name) { showAlert('Välj en produkt', 'error'); return; }
 
   if (stock !== '') {
@@ -429,14 +446,14 @@ async function loadForecastForSelected() {
     } catch (_) {}
   }
 
-  await loadForecast(name);
+  await loadForecast(name, days);
 }
 
-async function loadForecast(name) {
+async function loadForecast(name, days = 7) {
   try {
     const [salesRes, fcRes] = await Promise.all([
       api(`/api/sales/${encodeURIComponent(name)}`),
-      api(`/api/forecast/${encodeURIComponent(name)}`),
+      api(`/api/forecast/${encodeURIComponent(name)}?days=${days}`),
     ]);
 
     if (!fcRes.ok) {
@@ -451,17 +468,31 @@ async function loadForecast(name) {
     document.getElementById('forecastPlaceholder').classList.add('hidden');
     document.getElementById('forecastContent').classList.remove('hidden');
 
-    document.getElementById('sStock').textContent    = fc.current_stock;
-    document.getElementById('sForecast').textContent = fc.total_forecast_7d;
-    document.getElementById('sOrder').textContent    =
-      fc.order_quantity > 0 ? fc.order_quantity : '✓ OK';
+    // Update stat cards
+    const stockEl = document.getElementById('sStock');
+    if (fc.stock_initialized) {
+      stockEl.textContent  = fc.current_stock;
+      stockEl.className    = 'text-2xl font-bold text-white mt-1';
+    } else {
+      stockEl.textContent  = 'Ej angivet';
+      stockEl.className    = 'text-lg font-semibold text-amber-400 mt-1';
+    }
+
+    document.getElementById('dayLabelStat').textContent = fc.forecast_days || days;
+    document.getElementById('sForecast').textContent    = fc.total_forecast;
+    document.getElementById('sOrder').textContent       = fc.order_quantity > 0 ? fc.order_quantity : '✓ OK';
 
     const daysEl = document.getElementById('sDays');
-    daysEl.textContent  = fc.days_stock;
-    daysEl.className    = 'text-2xl font-bold mt-1 ' + statusColor(fc.status);
+    if (fc.days_stock !== null && fc.days_stock !== undefined) {
+      daysEl.textContent = fc.days_stock;
+      daysEl.className   = 'text-2xl font-bold mt-1 ' + statusColor(fc.status);
+    } else {
+      daysEl.textContent = '–';
+      daysEl.className   = 'text-2xl font-bold mt-1 text-slate-500';
+    }
 
     const badge = document.getElementById('methodBadge');
-    badge.textContent = fc.method === 'prophet' ? '🤖 Prophet AI' : '📐 Glidande medelvärde';
+    badge.textContent = fc.method === 'prophet' ? '🤖 Prophet AI + svenska helgdagar' : '📐 Glidande medelvärde';
 
     renderChart(sales, fc);
   } catch (err) {
@@ -577,11 +608,12 @@ function renderChart(sales, fc) {
 // Recommendations
 // ============================================================
 async function loadRecommendations() {
-  const c = document.getElementById('recsContainer');
+  const c    = document.getElementById('recsContainer');
+  const days = parseInt(document.getElementById('daySelect')?.value || '7', 10);
   c.innerHTML = '<p class="text-slate-500 text-sm text-center py-6">Laddar…</p>';
 
   try {
-    const res  = await api('/api/recommendations');
+    const res  = await api(`/api/recommendations?days=${days}`);
     const data = await res.json();
 
     if (!data.length) {
@@ -589,6 +621,7 @@ async function loadRecommendations() {
       return;
     }
 
+    const fDays = data[0]?.forecast_days || days;
     c.innerHTML = `
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -597,7 +630,7 @@ async function loadRecommendations() {
               <th class="pb-3 pr-4 font-medium">Status</th>
               <th class="pb-3 pr-4 font-medium">Produkt</th>
               <th class="pb-3 pr-4 font-medium text-right">Lager</th>
-              <th class="pb-3 pr-4 font-medium text-right">Prognos 7d</th>
+              <th class="pb-3 pr-4 font-medium text-right">Prognos ${fDays}d</th>
               <th class="pb-3 pr-4 font-medium text-right">Beställ</th>
               <th class="pb-3 font-medium text-right">Lagerdagar</th>
             </tr>
@@ -613,9 +646,16 @@ async function loadRecommendations() {
       tr.onclick   = () => {
         document.getElementById('productSelect').value = item.product;
         document.getElementById('stockInput').value    = item.current_stock;
-        loadForecast(item.product);
+        document.getElementById('daySelect').value     = days;
+        loadForecast(item.product, days);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
+      const stockDisplay = item.stock_initialized
+        ? item.current_stock
+        : '<span class="text-amber-400 text-xs">Ej angivet</span>';
+      const daysDisplay = item.days_stock !== null && item.days_stock !== undefined
+        ? `<span class="${statusColor(item.status)}">${item.days_stock}</span>`
+        : '<span class="text-slate-500">–</span>';
       tr.innerHTML = `
         <td class="py-3 pr-4">
           <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusBadge(item.status)}">
@@ -623,12 +663,12 @@ async function loadRecommendations() {
           </span>
         </td>
         <td class="py-3 pr-4 font-medium text-white">${item.product}</td>
-        <td class="py-3 pr-4 text-right text-slate-300">${item.current_stock}</td>
-        <td class="py-3 pr-4 text-right text-slate-300">${item.total_forecast_7d ?? '–'}</td>
+        <td class="py-3 pr-4 text-right text-slate-300">${stockDisplay}</td>
+        <td class="py-3 pr-4 text-right text-slate-300">${item.total_forecast ?? '–'}</td>
         <td class="py-3 pr-4 text-right font-semibold ${item.order_quantity > 0 ? 'text-amber-400' : 'text-emerald-400'}">
           ${item.order_quantity > 0 ? item.order_quantity : '✓'}
         </td>
-        <td class="py-3 text-right font-medium ${statusColor(item.status)}">${item.days_stock}</td>`;
+        <td class="py-3 text-right font-medium">${daysDisplay}</td>`;
       tbody.appendChild(tr);
     });
 
@@ -716,15 +756,31 @@ async function loadStockTable() {
       const safeId = 'si_' + p.name.replace(/[^a-zA-Z0-9_-]/g, '_');
       const tr = document.createElement('tr');
       tr.className = 'hover:bg-slate-700/10 transition-colors';
+
+      // Format stock_updated_at timestamp
+      let updatedStr = '';
+      if (p.stock_updated_at) {
+        try {
+          updatedStr = new Date(p.stock_updated_at).toLocaleString('sv-SE', {
+            dateStyle: 'short', timeStyle: 'short'
+          });
+        } catch (_) { updatedStr = p.stock_updated_at.slice(0, 16); }
+      }
+
+      const stockBadge = p.stock_initialized
+        ? `<span class="text-slate-300 font-mono">${p.stock}</span>
+           ${updatedStr ? `<span class="block text-xs text-slate-600 mt-0.5">Uppdaterad: ${updatedStr}</span>` : ''}`
+        : `<span class="text-amber-400 text-xs font-medium">Lager ej angivet</span>`;
+
       tr.innerHTML = `
         <td class="py-3 pr-4 font-medium text-white">${p.name}</td>
-        <td class="py-3 pr-4 text-right">
-          <span class="text-slate-300 font-mono" id="disp_${safeId}">${p.stock}</span>
-        </td>
+        <td class="py-3 pr-4 text-right">${stockBadge}</td>
         <td class="py-3 text-right">
           <div class="inline-flex items-center gap-2">
-            <input type="number" value="${p.stock}" min="0" id="${safeId}"
-              class="w-20 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-sm text-right focus:outline-none focus:ring-1 focus:ring-violet-500">
+            <input type="number" value="${p.stock_initialized ? p.stock : ''}" min="0"
+              placeholder="${p.stock_initialized ? '' : 'Ange lager'}"
+              id="${safeId}"
+              class="w-24 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-sm text-right focus:outline-none focus:ring-1 focus:ring-violet-500">
             <button onclick="updateSingleStock('${p.name.replace(/'/g, "\\'")}')"
               class="text-xs bg-violet-600 hover:bg-violet-500 text-white px-2.5 py-1 rounded transition-colors whitespace-nowrap">
               Spara
@@ -778,18 +834,44 @@ function showAlert(msg, type) {
 }
 
 function statusBadge(s) {
-  return { urgent: 'bg-red-500/20 text-red-400 border-red-500/30',
-           soon:   'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-           plan:   'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' }[s] || '';
+  return {
+    urgent:  'bg-red-500/20 text-red-400 border-red-500/30',
+    soon:    'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    plan:    'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    unknown: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
+  }[s] || 'bg-slate-500/20 text-slate-400 border-slate-500/30';
 }
 function statusColor(s) {
-  return { urgent: 'text-red-400', soon: 'text-yellow-400', plan: 'text-emerald-400' }[s] || 'text-slate-400';
+  return { urgent: 'text-red-400', soon: 'text-yellow-400', plan: 'text-emerald-400', unknown: 'text-slate-400' }[s] || 'text-slate-400';
 }
 function statusLabel(s) {
-  return { urgent: 'Brådskande', soon: 'Snart', plan: 'Planera' }[s] || s;
+  return { urgent: 'Brådskande', soon: 'Snart', plan: 'Planera', unknown: 'Lager okänt' }[s] || s;
 }
 function statusIcon(s) {
-  return { urgent: '🔴', soon: '🟡', plan: '🟢' }[s] || '⚪';
+  return { urgent: '🔴', soon: '🟡', plan: '🟢', unknown: '⚪' }[s] || '⚪';
+}
+
+async function exportRecommendations() {
+  const days = parseInt(document.getElementById('daySelect')?.value || '7', 10);
+  const btn  = document.getElementById('exportBtn');
+  const orig = btn.textContent;
+  btn.textContent = 'Förbereder…'; btn.disabled = true;
+  try {
+    const res = await api(`/api/export?days=${days}`);
+    if (!res.ok) { showAlert('Export misslyckades', 'error'); return; }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    a.href = url; a.download = `bestallningslista_${date}_${days}d.xlsx`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    showAlert(`Excel-fil nedladdad (${days}-dagarsprognos)`, 'success');
+  } catch (err) {
+    showAlert(err.message, 'error');
+  } finally {
+    btn.textContent = orig; btn.disabled = false;
+  }
 }
 </script>
 </body>

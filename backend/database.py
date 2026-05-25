@@ -1,5 +1,5 @@
-import sqlite3
 import hashlib
+import sqlite3
 from pathlib import Path
 
 DB_PATH = Path(__file__).parent / "grossist.db"
@@ -24,10 +24,13 @@ def init_db() -> None:
         );
 
         CREATE TABLE IF NOT EXISTS products (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            name          TEXT    UNIQUE NOT NULL,
-            current_stock INTEGER NOT NULL DEFAULT 0,
-            unit          TEXT    NOT NULL DEFAULT 'st'
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            name              TEXT    UNIQUE NOT NULL,
+            current_stock     INTEGER NOT NULL DEFAULT 0,
+            unit              TEXT    NOT NULL DEFAULT 'st',
+            stock_initialized INTEGER NOT NULL DEFAULT 0,
+            stock_updated_at  TEXT,
+            stock_sync_date   TEXT
         );
 
         CREATE TABLE IF NOT EXISTS sales (
@@ -40,6 +43,17 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_sales_product_date
             ON sales(product_id, date);
     """)
+
+    # Migrate existing databases that pre-date the new columns
+    for sql in [
+        "ALTER TABLE products ADD COLUMN stock_initialized INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE products ADD COLUMN stock_updated_at  TEXT",
+        "ALTER TABLE products ADD COLUMN stock_sync_date   TEXT",
+    ]:
+        try:
+            cur.execute(sql)
+        except sqlite3.OperationalError:
+            pass  # column already exists
 
     pw_hash = hashlib.sha256("demo123".encode()).hexdigest()
     cur.execute(
