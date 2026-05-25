@@ -294,14 +294,14 @@
     <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Översikt</h2>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="bg-slate-800 border border-slate-700 p-5">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Totalt ingredienser</p>
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="kpiTotalLabel">Totalt ingredienser</p>
         <p class="text-3xl font-bold text-white mt-2" id="kpiTotal">–</p>
-        <p class="text-xs text-slate-600 mt-1">i systemet</p>
+        <p class="text-xs text-slate-600 mt-1" id="kpiTotalSub">i systemet</p>
       </div>
       <div class="bg-slate-800 border border-red-900/50 p-5">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Brådskande</p>
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="kpiUrgentLabel">Brådskande</p>
         <p class="text-3xl font-bold text-red-400 mt-2" id="kpiUrgent">–</p>
-        <p class="text-xs text-slate-600 mt-1">ingredienser att köpa in</p>
+        <p class="text-xs text-slate-600 mt-1" id="kpiUrgentSub">ingredienser att köpa in</p>
       </div>
       <div class="bg-slate-800 border border-yellow-900/50 p-5" id="kpiLowPortionsCard">
         <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Recept — lågt förråd</p>
@@ -309,24 +309,24 @@
         <p class="text-xs text-slate-600 mt-1">rätter &lt; 10 portioner</p>
       </div>
       <div class="bg-slate-800 border border-slate-700 p-5">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Förbrukning 7 dagar</p>
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="kpiSalesLabel">Förbrukning 7 dagar</p>
         <p class="text-3xl font-bold text-emerald-400 mt-2" id="kpiSales">–</p>
-        <p class="text-xs text-slate-600 mt-1">enheter totalt</p>
+        <p class="text-xs text-slate-600 mt-1" id="kpiSalesSub">enheter totalt</p>
       </div>
     </div>
     <div class="bg-slate-800 border border-slate-700 p-6">
-      <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Total förbrukning — senaste 30 dagarna</h3>
+      <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4" id="dashChartLabel">Total förbrukning — senaste 30 dagarna</h3>
       <div id="dashChartPlaceholder" class="flex items-center justify-center h-48 text-slate-600 text-sm">Laddar data...</div>
       <div id="dashChartWrap" class="hidden relative h-56"><canvas id="dashChart"></canvas></div>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <button onclick="showSection('import')" class="bg-slate-800 border border-slate-700 p-4 text-left hover:border-slate-500 transition-colors">
-        <p class="text-sm font-semibold text-white">Ladda upp data</p>
-        <p class="text-xs text-slate-500 mt-1">Importera förbrukning, förråd eller rätt-försäljning</p>
+        <p class="text-sm font-semibold text-white" id="dashImportTitle">Ladda upp data</p>
+        <p class="text-xs text-slate-500 mt-1" id="dashImportSub">Importera förbrukning, förråd eller rätt-försäljning</p>
       </button>
       <button onclick="showSection('recs')" class="bg-slate-800 border border-slate-700 p-4 text-left hover:border-slate-500 transition-colors">
-        <p class="text-sm font-semibold text-white">Inköpsrekommendationer</p>
-        <p class="text-xs text-slate-500 mt-1">Se vad som behöver köpas in just nu</p>
+        <p class="text-sm font-semibold text-white" id="dashRecsTitle">Inköpsrekommendationer</p>
+        <p class="text-xs text-slate-500 mt-1" id="dashRecsSub">Se vad som behöver köpas in just nu</p>
       </button>
       <button onclick="showSection('recipes')" id="dashQuickRecipes" class="bg-slate-800 border border-slate-700 p-4 text-left hover:border-slate-500 transition-colors">
         <p class="text-sm font-semibold text-white">Recept &amp; portioner</p>
@@ -341,9 +341,9 @@
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
 
       <div class="bg-slate-800 p-5 border border-slate-700">
-        <h3 class="text-sm font-semibold text-white mb-1">Ingrediensförbrukning</h3>
+        <h3 class="text-sm font-semibold text-white mb-1" id="importSalesTitle">Ingrediensförbrukning</h3>
         <p class="text-xs text-slate-500 mb-1">Accepterar valfritt Excel/CSV-format.</p>
-        <p class="text-xs text-slate-600 mb-4">Behöver: ingrediens, datum, antal</p>
+        <p class="text-xs text-slate-600 mb-4" id="importSalesDesc">Behöver: ingrediens, datum, antal</p>
         <div class="flex gap-2">
           <label class="flex-1 cursor-pointer">
             <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" class="hidden" onchange="onFileChosen(this,'sales')">
@@ -421,16 +421,16 @@
   <div id="sec-forecast" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
     <div class="bg-slate-800 border border-slate-700">
       <div class="px-6 py-4 border-b border-slate-700">
-        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Prognos per ingrediens</h2>
+        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4" id="forecastSectionTitle">Prognos per ingrediens</h2>
         <div class="flex flex-wrap gap-3 items-end">
           <div class="flex-1 min-w-44">
-            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">Ingrediens</label>
+            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider" id="forecastProductLabel">Ingrediens</label>
             <select id="productSelect" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-700">
               <option value="">-- Välj ingrediens --</option>
             </select>
           </div>
           <div class="w-36">
-            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">Förråd</label>
+            <label class="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider" id="forecastStockLabel">Förråd</label>
             <input type="number" id="stockInput" min="0" placeholder="Nuvarande" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-700">
           </div>
           <div class="w-32">
@@ -446,13 +446,13 @@
         </div>
       </div>
       <div class="p-6">
-        <div id="forecastPlaceholder" class="flex items-center justify-center h-48 text-slate-600 text-sm">Välj en ingrediens ovan</div>
+        <div id="forecastPlaceholder" class="flex items-center justify-center h-48 text-slate-600 text-sm" id="forecastPlaceholderText">Välj en ingrediens ovan</div>
         <div id="forecastContent" class="hidden">
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Nuv. förråd</p><p class="text-2xl font-bold text-white mt-1" id="sStock">–</p></div>
+            <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="fcStockLabel">Nuv. förråd</p><p class="text-2xl font-bold text-white mt-1" id="sStock">–</p></div>
             <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Prognos <span id="dayLabelStat">7</span> dgr</p><p class="text-2xl font-bold text-white mt-1" id="sForecast">–</p></div>
-            <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Köp in</p><p class="text-2xl font-bold text-amber-400 mt-1" id="sOrder">–</p></div>
-            <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Förråddagar</p><p class="text-2xl font-bold mt-1" id="sDays">–</p></div>
+            <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="fcOrderLabel">Köp in</p><p class="text-2xl font-bold text-amber-400 mt-1" id="sOrder">–</p></div>
+            <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="fcDaysLabel">Förråddagar</p><p class="text-2xl font-bold mt-1" id="sDays">–</p></div>
           </div>
           <div class="flex items-center gap-2 mb-4">
             <span id="methodBadge" class="text-xs px-2 py-0.5 bg-slate-700 text-slate-400 border border-slate-600"></span>
@@ -536,13 +536,13 @@
 
   <!-- ══════ SVINN ══════ -->
   <div id="sec-waste" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
-    <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Svinnanalys</h2>
+    <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest" id="wasteSectionTitle">Svinnanalys</h2>
 
     <div class="bg-slate-800 border border-slate-700 p-6">
-      <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Registrera svinn</h3>
+      <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4" id="wasteRegisterTitle">Registrera svinn</h3>
       <div class="flex flex-wrap gap-3 items-end">
         <div class="flex-1 min-w-40">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">Ingrediens</label>
+          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5" id="wasteProductLabel">Ingrediens</label>
           <select id="wasteProduct" class="w-full bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
             <option value="">-- Välj ingrediens --</option>
           </select>
@@ -572,18 +572,18 @@
             <option value="övrigt">Övrigt</option>
           </select>
         </div>
-        <button onclick="logWaste()" class="bg-rose-800 hover:bg-rose-700 text-white px-5 py-2.5 text-sm font-medium transition-colors whitespace-nowrap">Registrera svinn</button>
+        <button onclick="logWaste()" id="wasteLogBtn" class="bg-rose-800 hover:bg-rose-700 text-white px-5 py-2.5 text-sm font-medium transition-colors whitespace-nowrap">Registrera svinn</button>
       </div>
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
       <div class="bg-slate-800 border border-slate-700 p-4">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Totalt svinn</p>
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="wasteTotalLabel">Totalt svinn</p>
         <p class="text-2xl font-bold text-white mt-1" id="wasteTotalQty">–</p>
         <p class="text-xs text-slate-600 mt-0.5">enheter totalt</p>
       </div>
       <div class="bg-slate-800 border border-slate-700 p-4">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Svinnskostnad</p>
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="wasteCostLabel">Svinnskostnad</p>
         <p class="text-2xl font-bold text-red-400 mt-1" id="wasteTotalCost">–</p>
         <p class="text-xs text-slate-600 mt-0.5">kronor (baserat på inköpspris)</p>
       </div>
@@ -629,7 +629,7 @@
 
     <div class="bg-slate-800 border border-slate-700">
       <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Förrådsöversikt</h2>
+        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest" id="stockOverviewTitle">Förrådsöversikt</h2>
         <button onclick="loadStockTable()" class="text-xs text-slate-500 hover:text-white px-2 py-1 hover:bg-slate-700">↺ Uppdatera</button>
       </div>
       <div id="stockContainer" class="p-6"><p class="text-slate-600 text-sm text-center py-6">Laddar...</p></div>
@@ -847,15 +847,138 @@ function editRestaurantName(){
 // ============================================================
 // Mode: Grossist vs Restaurang/Café
 // ============================================================
+
+// Label dictionary — single source of truth for all mode-specific text
+const LABELS = {
+  grossist: {
+    // Generic
+    product:        'vara',
+    Product:        'Vara',
+    products:       'varor',
+    Products:       'Varor',
+    stock:          'lager',
+    Stock:          'Lager',
+    consumption:    'försäljning',
+    Consumption:    'Försäljning',
+    orderAction:    'Beställ',
+    orderDays:      'Lagerdagar',
+    // Nav
+    navRecs:        'Beställningsrek.',
+    navStock:       'Lager',
+    navWaste:       'Kassation',
+    // Dashboard
+    kpiTotalLabel:  'Totalt varor',
+    kpiTotalSub:    'i systemet',
+    kpiUrgentLabel: 'Brådskande',
+    kpiUrgentSub:   'varor att beställa',
+    kpiSalesLabel:  'Försäljning 7 dagar',
+    kpiSalesSub:    'enheter totalt',
+    dashChartLabel: 'Total försäljning — senaste 30 dagarna',
+    dashImportTitle:'Ladda upp försäljningsdata',
+    dashImportSub:  'Importera försäljning, lager eller följesedlar',
+    dashRecsTitle:  'Beställningsrekommendationer',
+    dashRecsSub:    'Se vilka varor som behöver beställas',
+    // Import
+    importSalesTitle:'Produktförsäljning',
+    importSalesDesc: 'Behöver: vara, datum, antal',
+    // Forecast
+    forecastSectionTitle: 'Prognos per vara',
+    forecastProductLabel: 'Vara',
+    forecastStockLabel:   'Lager',
+    forecastPlaceholder:  'Välj en vara ovan',
+    fcStockLabel:         'Nuv. lager',
+    fcOrderLabel:         'Beställ',
+    fcDaysLabel:          'Lagerdagar',
+    // Recs table columns (used in loadRecommendations)
+    recsColProduct:  'Vara',
+    recsColStock:    'Lager',
+    recsColDays:     'Lagerdagar',
+    // Stock table
+    stockOverviewTitle:  'Lageröversikt',
+    stockColProduct:     'Vara',
+    stockColBalance:     'Lagersaldo',
+    stockColSave:        'Ändra och spara',
+    // Waste
+    wasteSectionTitle:   'Kassationsanalys',
+    wasteRegisterTitle:  'Registrera kassation',
+    wasteProductLabel:   'Vara',
+    wasteTotalLabel:     'Total kassation',
+    wasteCostLabel:      'Kassationskostnad',
+    wasteLogBtn:         'Registrera kassation',
+    wasteReasons:        [['utgått','Utgången vara'],['skadat','Skadat gods'],['stöld','Stöld / svinn'],['retur','Retur'],['övrigt','Övrigt']],
+    // Product dropdown placeholder
+    productSelectPlaceholder: '-- Välj vara --',
+  },
+  restaurant: {
+    // Generic
+    product:        'ingrediens',
+    Product:        'Ingrediens',
+    products:       'ingredienser',
+    Products:       'Ingredienser',
+    stock:          'förråd',
+    Stock:          'Förråd',
+    consumption:    'förbrukning',
+    Consumption:    'Förbrukning',
+    orderAction:    'Köp in',
+    orderDays:      'Förråddagar',
+    // Nav
+    navRecs:        'Inköpsrek.',
+    navStock:       'Förråd',
+    navWaste:       'Svinn',
+    // Dashboard
+    kpiTotalLabel:  'Totalt ingredienser',
+    kpiTotalSub:    'i systemet',
+    kpiUrgentLabel: 'Brådskande',
+    kpiUrgentSub:   'ingredienser att köpa in',
+    kpiSalesLabel:  'Förbrukning 7 dagar',
+    kpiSalesSub:    'enheter totalt',
+    dashChartLabel: 'Total förbrukning — senaste 30 dagarna',
+    dashImportTitle:'Ladda upp data',
+    dashImportSub:  'Importera förbrukning, förråd eller rätt-försäljning',
+    dashRecsTitle:  'Inköpsrekommendationer',
+    dashRecsSub:    'Se vad som behöver köpas in just nu',
+    // Import
+    importSalesTitle:'Ingrediensförbrukning',
+    importSalesDesc: 'Behöver: ingrediens, datum, antal',
+    // Forecast
+    forecastSectionTitle: 'Prognos per ingrediens',
+    forecastProductLabel: 'Ingrediens',
+    forecastStockLabel:   'Förråd',
+    forecastPlaceholder:  'Välj en ingrediens ovan',
+    fcStockLabel:         'Nuv. förråd',
+    fcOrderLabel:         'Köp in',
+    fcDaysLabel:          'Förråddagar',
+    // Recs table columns
+    recsColProduct:  'Ingrediens',
+    recsColStock:    'Förråd',
+    recsColDays:     'Förråddagar',
+    // Stock table
+    stockOverviewTitle:  'Förrådsöversikt',
+    stockColProduct:     'Ingrediens',
+    stockColBalance:     'Förrådsaldo',
+    stockColSave:        'Ändra och spara',
+    // Waste
+    wasteSectionTitle:   'Svinnanalys',
+    wasteRegisterTitle:  'Registrera svinn',
+    wasteProductLabel:   'Ingrediens',
+    wasteTotalLabel:     'Totalt svinn',
+    wasteCostLabel:      'Svinnskostnad',
+    wasteLogBtn:         'Registrera svinn',
+    wasteReasons:        [['utgått','Utgått'],['skadat','Skadat'],['överproduktion','Överproduktion'],['övrigt','Övrigt']],
+    // Product dropdown placeholder
+    productSelectPlaceholder: '-- Välj ingrediens --',
+  },
+};
+
+function L(key) { return (LABELS[g_mode] || LABELS.restaurant)[key] || key; }
+
 function selectMode(mode, silent) {
   g_mode = mode;
   if (!silent) localStorage.setItem('g_mode', mode);
-  // Update login mode cards
   ['grossist','restaurant'].forEach(m => {
     const el = document.getElementById('mode' + (m==='grossist'?'Grossist':'Restaurant'));
     if (el) el.classList.toggle('active', m === mode);
   });
-  // Update login header text
   const isG = mode === 'grossist';
   const titleEl = document.getElementById('loginTitle');
   const subEl   = document.getElementById('loginSubtitle');
@@ -868,53 +991,73 @@ function selectMode(mode, silent) {
 function applyMode(mode) {
   const isG = mode === 'grossist';
 
-  // Header logo letter
+  // ── Logos ──────────────────────────────────────────────────
   const hLogo = document.getElementById('headerLogoLetter');
   if (hLogo) hLogo.textContent = isG ? 'G' : 'R';
 
-  // Nav: restaurant-only tabs
+  // ── Nav ────────────────────────────────────────────────────
   ['nav-recipes','nav-menu'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('hidden', isG);
   });
+  _setText('nav-recs',  L('navRecs'));
+  _setText('nav-stock', L('navStock'));
+  _setText('nav-waste', L('navWaste'));
 
-  // Nav label overrides
-  const navRecs  = document.getElementById('nav-recs');
-  const navStock = document.getElementById('nav-stock');
-  if (navRecs)  navRecs.textContent  = isG ? 'Beställningsrek.' : 'Inköpsrek.';
-  if (navStock) navStock.textContent = isG ? 'Lager'            : 'Förråd';
-
-  // Dashboard KPI card for recipes
+  // ── Dashboard ──────────────────────────────────────────────
   const kpiCard = document.getElementById('kpiLowPortionsCard');
   if (kpiCard) kpiCard.classList.toggle('hidden', isG);
-
-  // Dashboard quick-link for recipes
   const quickR = document.getElementById('dashQuickRecipes');
   if (quickR) quickR.classList.toggle('hidden', isG);
 
-  // Import: dish-sales card
+  ['kpiTotalLabel','kpiTotalSub','kpiUrgentLabel','kpiUrgentSub',
+   'kpiSalesLabel','kpiSalesSub','dashChartLabel',
+   'dashImportTitle','dashImportSub','dashRecsTitle','dashRecsSub'].forEach(id => _setText(id, L(id)));
+
+  // ── Import ─────────────────────────────────────────────────
   const dishCard = document.getElementById('dishSalesCard');
   if (dishCard) dishCard.classList.toggle('hidden', isG);
+  _setText('importSalesTitle', L('importSalesTitle'));
+  _setText('importSalesDesc',  L('importSalesDesc'));
 
-  // Section headings & labels we can patch inline
+  // ── Prognos ────────────────────────────────────────────────
+  ['forecastSectionTitle','forecastProductLabel','forecastStockLabel',
+   'fcStockLabel','fcOrderLabel','fcDaysLabel'].forEach(id => _setText(id, L(id)));
+  const ph = document.getElementById('forecastPlaceholder');
+  if (ph) ph.textContent = L('forecastPlaceholder');
+  // Update product select placeholder option
+  const pSel = document.getElementById('productSelect');
+  if (pSel && pSel.options[0]) pSel.options[0].text = L('productSelectPlaceholder');
+
+  // ── Rekommendationer section header ────────────────────────
   const recsH = document.querySelector('#sec-recs h2');
   if (recsH) recsH.textContent = isG ? 'Beställningsrekommendationer' : 'Inköpsrekommendationer';
 
-  const stockH = document.querySelector('#sec-stock .bg-slate-800:last-child h2');
-  if (stockH) stockH.textContent = isG ? 'Lageröversikt' : 'Förrådsöversikt';
+  // ── Svinn / Kassation ──────────────────────────────────────
+  ['wasteSectionTitle','wasteRegisterTitle','wasteProductLabel',
+   'wasteTotalLabel','wasteCostLabel'].forEach(id => _setText(id, L(id)));
+  const wBtn = document.getElementById('wasteLogBtn');
+  if (wBtn) wBtn.textContent = L('wasteLogBtn');
+  // Swap reason dropdown options
+  const wReason = document.getElementById('wasteReason');
+  if (wReason) {
+    const reasons = L('wasteReasons');
+    wReason.innerHTML = reasons.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+  }
+  // Waste dropdown placeholder
+  const wProd = document.getElementById('wasteProduct');
+  if (wProd && wProd.options[0]) wProd.options[0].text = `-- Välj ${L('product')} --`;
 
-  // Forecast label
-  const fLabel = document.querySelector('#sec-forecast label');
-  if (fLabel && fLabel.textContent.includes('Ingrediens'))
-    fLabel.textContent = isG ? 'Vara' : 'Ingrediens';
+  // ── Förråd / Lager section ─────────────────────────────────
+  _setText('stockOverviewTitle', L('stockOverviewTitle'));
 
-  // Waste section: "Ingrediens" dropdown label
-  const wLabel = document.querySelector('#sec-waste label');
-  if (wLabel && (wLabel.textContent.trim()==='Ingrediens'||wLabel.textContent.trim()==='Vara'))
-    wLabel.textContent = isG ? 'Vara' : 'Ingrediens';
-
-  // Page title
+  // ── Page title ─────────────────────────────────────────────
   document.title = isG ? 'Grossistprognos' : 'Restaurangprognos';
+}
+
+function _setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
 }
 
 // ============================================================
@@ -964,7 +1107,7 @@ async function loadProducts() {
     ['productSelect','wasteProduct'].forEach(id=>{
       const sel=document.getElementById(id); if(!sel) return;
       const prev=sel.value;
-      sel.innerHTML='<option value="">-- Välj ingrediens --</option>';
+      sel.innerHTML=`<option value="">-- Välj ${L('product')} --</option>`;
       data.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;o.dataset.stock=p.stock;sel.appendChild(o);});
       if(prev) sel.value=prev;
     });
@@ -1134,9 +1277,9 @@ async function loadRecommendations(){
     const fDays=data[0]?.forecast_days||days;
     c.innerHTML=`<div class="overflow-x-auto"><table class="w-full text-sm">
       <thead><tr class="text-slate-500 text-xs uppercase tracking-wider text-left border-b border-slate-700">
-        <th class="pb-3 pr-3 font-semibold">Status</th><th class="pb-3 pr-4 font-semibold">Ingrediens</th>
-        <th class="pb-3 pr-4 font-semibold text-right">Förråd</th><th class="pb-3 pr-4 font-semibold text-right">Prognos ${fDays}d</th>
-        <th class="pb-3 pr-4 font-semibold text-right">Köp in</th><th class="pb-3 pr-4 font-semibold text-right">Förråddagar</th>
+        <th class="pb-3 pr-3 font-semibold">Status</th><th class="pb-3 pr-4 font-semibold">${L('recsColProduct')}</th>
+        <th class="pb-3 pr-4 font-semibold text-right">${L('recsColStock')}</th><th class="pb-3 pr-4 font-semibold text-right">Prognos ${fDays}d</th>
+        <th class="pb-3 pr-4 font-semibold text-right">${L('orderAction')}</th><th class="pb-3 pr-4 font-semibold text-right">${L('recsColDays')}</th>
         <th class="pb-3 pr-4 font-semibold">Leverantör</th>
       </tr></thead><tbody id="recsTbody" class="divide-y divide-slate-700/40"></tbody></table></div>`;
     const tbody=document.getElementById('recsTbody');
@@ -1525,7 +1668,7 @@ async function loadWasteReport(){
     if(chartData.length){
       wasteChartInst=new Chart(document.getElementById('wasteChart').getContext('2d'),{
         type:'bar',
-        data:{labels:chartData.map(r=>r.week||r.month),datasets:[{label:'Svinn',data:chartData.map(r=>r.qty),backgroundColor:'rgba(190,18,60,0.4)',borderColor:'rgba(190,18,60,0.7)',borderWidth:1}]},
+        data:{labels:chartData.map(r=>r.week||r.month),datasets:[{label:g_mode==='grossist'?'Kassation':'Svinn',data:chartData.map(r=>r.qty),backgroundColor:'rgba(190,18,60,0.4)',borderColor:'rgba(190,18,60,0.7)',borderWidth:1}]},
         options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
           scales:{x:{ticks:{color:'#475569',font:{size:10}},grid:{color:'rgba(71,85,105,0.15)'}},
                   y:{ticks:{color:'#475569',font:{size:11}},grid:{color:'rgba(71,85,105,0.15)'},beginAtZero:true}}}
@@ -1537,10 +1680,10 @@ async function loadWasteReport(){
     if(!d.products.length){tc.innerHTML='<p class="text-slate-600 text-sm text-center py-4">Inga svinnposter ännu</p>';}
     else tc.innerHTML=`<table class="w-full text-xs">
       <thead><tr class="text-slate-500 text-xs uppercase tracking-wider border-b border-slate-700">
-        <th class="pb-2 pr-3 text-left font-semibold">Ingrediens</th>
-        <th class="pb-2 pr-3 text-right font-semibold">Svinn</th>
+        <th class="pb-2 pr-3 text-left font-semibold">${L('Product')}</th>
+        <th class="pb-2 pr-3 text-right font-semibold">${g_mode==='grossist'?'Kassation':'Svinn'}</th>
         <th class="pb-2 pr-3 text-right font-semibold">Kostnad</th>
-        <th class="pb-2 text-right font-semibold">% av förbrukn.</th>
+        <th class="pb-2 text-right font-semibold">% av ${L('consumption')}</th>
       </tr></thead><tbody class="divide-y divide-slate-700/40">
         ${d.products.map((p,i)=>`<tr class="${i%2?'bg-slate-700/10':''}">
           <td class="py-2 pr-3 font-medium text-white">${escHtml(p.product)}</td>
@@ -1604,11 +1747,11 @@ async function loadStockTable(){
     if(!prodData.length){c.innerHTML='<p class="text-slate-600 text-sm text-center py-6">Inga ingredienser.</p>';return;}
     c.innerHTML=`<div class="overflow-x-auto"><table class="w-full text-sm">
       <thead><tr class="text-slate-500 text-xs uppercase tracking-wider text-left border-b border-slate-700">
-        <th class="pb-3 pr-4 font-semibold">Ingrediens</th>
-        <th class="pb-3 pr-4 font-semibold text-right">Förrådsaldo</th>
+        <th class="pb-3 pr-4 font-semibold">${L('stockColProduct')}</th>
+        <th class="pb-3 pr-4 font-semibold text-right">${L('stockColBalance')}</th>
         <th class="pb-3 pr-4 font-semibold text-right">Inköpspris (kr)</th>
         <th class="pb-3 pr-4 font-semibold">Leverantör</th>
-        <th class="pb-3 font-semibold text-right">Ändra och spara</th>
+        <th class="pb-3 font-semibold text-right">${L('stockColSave')}</th>
       </tr></thead><tbody id="stockTbody" class="divide-y divide-slate-700/40"></tbody></table></div>`;
     const tbody=document.getElementById('stockTbody');
     prodData.forEach((p,i)=>{
@@ -1657,7 +1800,7 @@ async function saveStock(name){
       api(`/api/stock/${encodeURIComponent(name)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({stock})}),
       !isNaN(price)&&api(`/api/products/${encodeURIComponent(name)}/price`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({price})})
     ].filter(Boolean));
-    showAlert(`Förråd uppdaterat: ${name} — ${stock}`,'success');
+    showAlert(`${L('Stock')} uppdaterat: ${name} — ${stock}`,'success');
     await loadDashboard();
   } catch(err){ showAlert(err.message,'error'); }
 }
