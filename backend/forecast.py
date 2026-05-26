@@ -180,13 +180,17 @@ def _xgboost_forecast(df: pd.DataFrame, days: int) -> list[dict]:
         df2["dom"]        = df2["ds"].dt.day
         df2["is_holiday"] = df2["ds"].apply(lambda ts: int(ts.date() in holidays))
         df2["roll7"]      = df2["y"].rolling(7, min_periods=1).mean()
+        df2["roll28"]     = df2["y"].rolling(28, min_periods=1).mean()
         df2["lag_7"]      = df2["y"].shift(7)
+        df2["lag_14"]     = df2["y"].shift(14)
+        # Week-over-week ratio captures growth/decline pattern
+        df2["wow"]        = (df2["y"] / df2["lag_7"]).replace([np.inf, -np.inf], np.nan).fillna(1.0)
 
         train = df2.dropna()
         if len(train) < 15:
             return _simple_forecast(df, days)
 
-        feat_cols = ["dow", "month", "dom", "is_holiday", "roll7", "lag_7"]
+        feat_cols = ["dow", "month", "dom", "is_holiday", "roll7", "roll28", "lag_7", "lag_14", "wow"]
 
         model = _XGBRegressor(
             n_estimators=150, max_depth=4, learning_rate=0.08,
@@ -207,14 +211,20 @@ def _xgboost_forecast(df: pd.DataFrame, days: int) -> list[dict]:
                 idx = len(history) - n
                 return history[idx] if idx >= 0 else float(np.mean(history[-7:]))
 
-            roll7_val = float(np.mean(history[-7:])) if len(history) >= 7 else float(np.mean(history))
-            row_dict  = {
+            roll7_val  = float(np.mean(history[-7:]))  if len(history) >= 7  else float(np.mean(history))
+            roll28_val = float(np.mean(history[-28:])) if len(history) >= 28 else float(np.mean(history))
+            lag7_val   = _lag(7)
+            wow_val    = (history[-1] / lag7_val) if lag7_val > 1e-6 else 1.0
+            row_dict   = {
                 "dow":        fd.dayofweek,
                 "month":      fd.month,
                 "dom":        fd.day,
                 "is_holiday": int(fd.date() in holidays),
                 "roll7":      roll7_val,
-                "lag_7":      _lag(7),
+                "roll28":     roll28_val,
+                "lag_7":      lag7_val,
+                "lag_14":     _lag(14),
+                "wow":        wow_val,
             }
             feat = np.array([[row_dict[c] for c in feat_cols]])
             pred = float(max(0.0, model.predict(feat)[0]))
@@ -232,23 +242,97 @@ def _xgboost_forecast(df: pd.DataFrame, days: int) -> list[dict]:
         return _simple_forecast(df, days)
 
 
+def _compute_dow_multipliers(df: pd.DataFrame) -> dict[int, float]:
+    """Learn per-weekday multipliers from actual sales data."""
+    if len(df) < 14:
+        return {i: 1.0 for i in range(7)}
+    tmp = df.copy()
+    tmp["dow"] = tmp["ds"].dt.dayofweek
+    overall = float(tmp["y"].mean())
+    if overall < 1e-6:
+        return {i: 1.0 for i in range(7)}
+    out: dict[int, float] = {}
+    for dow in range(7):
+        sel = tmp[tmp["dow"] == dow]
+        if len(sel) >= 2:
+            # Clamp to [0.5, 2.0] to avoid extreme effects from noisy data
+            out[dow] = float(max(0.5, min(2.0, sel["y"].mean() / overall)))
+        else:
+            out[dow] = 1.0
+    return out
+
+
+def _compute_trend_slope(values: np.ndarray) -> float:
+    """Detect linear trend (units/day) from the most recent observations."""
+    recent = values[-14:] if len(values) >= 14 else values
+    if len(recent) < 7:
+        return 0.0
+    x = np.arange(len(recent))
+    try:
+        slope = float(np.polyfit(x, recent, 1)[0])
+        # Limit trend influence to avoid runaway predictions
+        cap = float(np.std(recent)) * 0.2
+        return max(-cap, min(cap, slope))
+    except Exception:
+        return 0.0
+
+
 def _simple_forecast(df: pd.DataFrame, days: int) -> list[dict]:
+    """
+    Improved EWMA fallback with:
+    - Stronger recency weighting
+    - Per-product learned day-of-week multipliers
+    - Linear trend correction
+    """
     values  = df["y"].values
-    weights = np.exp(np.linspace(0, 1, len(values)))
+    if len(values) == 0:
+        return []
+    # Exponential weights with stronger recency bias
+    weights = np.exp(np.linspace(0, 2, len(values)))
     base    = float(np.average(values, weights=weights))
     std     = float(values.std()) if len(values) > 1 else base * 0.2
+
+    dow_mult  = _compute_dow_multipliers(df)
+    slope     = _compute_trend_slope(values)
     last_date = df["ds"].max()
-    wf = {0: 0.85, 1: 0.90, 2: 0.93, 3: 0.97, 4: 1.25, 5: 1.35, 6: 1.10}
     points = []
     for i in range(1, days + 1):
-        d    = last_date + timedelta(days=i)
-        pred = max(0.0, base * wf.get(d.weekday(), 1.0))
+        d           = last_date + timedelta(days=i)
+        dow_factor  = dow_mult.get(d.weekday(), 1.0)
+        trend_adj   = slope * i
+        pred        = max(0.0, base * dow_factor + trend_adj)
         points.append({
             "date":      d.strftime("%Y-%m-%d"),
             "predicted": round(pred, 1),
             "lower":     round(max(0.0, pred - std), 1),
             "upper":     round(pred + std, 1),
         })
+    return points
+
+
+def _adjust_intervals_for_history(points: list[dict], history_days: int) -> list[dict]:
+    """
+    Widen confidence intervals when history is short — uncertainty must reflect
+    the data we actually have.
+    """
+    if history_days >= 180:
+        factor = 1.0
+    elif history_days >= 90:
+        factor = 1.10
+    elif history_days >= 60:
+        factor = 1.20
+    elif history_days >= 30:
+        factor = 1.40
+    else:
+        factor = 1.65
+    if factor == 1.0:
+        return points
+    for pt in points:
+        pred         = pt["predicted"]
+        upper_range  = pt["upper"] - pred
+        lower_range  = pred - pt["lower"]
+        pt["upper"]  = round(pred + upper_range * factor, 1)
+        pt["lower"]  = round(max(0.0, pred - lower_range * factor), 1)
     return points
 
 
@@ -357,6 +441,25 @@ def get_forecast(product_name: str, days: int = 7) -> dict | None:
     if not points:
         points = _simple_forecast(df, days)
         method = "fallback"
+
+    # When the AI model has < 1 year of data, blend in learned weekday
+    # multipliers (helps catch lunch-vs-weekend rhythm that 6-month-old data
+    # under-represents)
+    if method in ("neuralprophet", "combined_np", "prophet", "combined") and history_days < 365:
+        dow_mult = _compute_dow_multipliers(df)
+        # Only blend if the multipliers are meaningfully non-flat
+        max_dev = max(abs(v - 1.0) for v in dow_mult.values())
+        if max_dev > 0.10:
+            # Blend weight: 30% weekday correction, 70% model output
+            blend = 0.30
+            for pt in points:
+                day      = pd.Timestamp(pt["date"]).dayofweek
+                mult     = dow_mult.get(day, 1.0)
+                adjusted = pt["predicted"] * ((1 - blend) + blend * mult)
+                pt["predicted"] = round(max(0.0, adjusted), 1)
+
+    # Widen confidence intervals when history is short
+    points = _adjust_intervals_for_history(points, history_days)
 
     # ── Apply calendar event multipliers ─────────────────────────────────────
     today_iso = date.today().isoformat()
