@@ -116,6 +116,8 @@ def get_cleaned_series(product_id: int, conn) -> pd.DataFrame:
     - confirmed outliers replaced with interpolated values
     - closed days removed
     - negative quantities removed
+    - suspected stockouts replaced with rolling median (qty << median when
+      product normally sells well)
     """
     rows = conn.execute(
         "SELECT date, SUM(quantity) AS qty "
@@ -129,7 +131,7 @@ def get_cleaned_series(product_id: int, conn) -> pd.DataFrame:
     df["ds"] = pd.to_datetime(df["ds"])
     df = df.sort_values("ds").reset_index(drop=True)
 
-    # Outlier replacements
+    # ── Outlier replacements ──────────────────────────────────────────────
     outlier_rows = conn.execute("""
         SELECT date, interpolated_value FROM outliers
         WHERE product_id=? AND status='confirmed_outlier'
@@ -137,7 +139,7 @@ def get_cleaned_series(product_id: int, conn) -> pd.DataFrame:
     """, (product_id,)).fetchall()
     outlier_map = {r["date"]: float(r["interpolated_value"]) for r in outlier_rows}
 
-    # Closed days
+    # ── Closed days ───────────────────────────────────────────────────────
     closed_rows = conn.execute("""
         SELECT date FROM closed_days
         WHERE product_id=? OR product_id IS NULL
@@ -149,13 +151,50 @@ def get_cleaned_series(product_id: int, conn) -> pd.DataFrame:
         if ds in outlier_map:
             df.at[idx, "y"] = outlier_map[ds]
 
-    # Remove closed days
     df = df[~df["ds"].apply(lambda ts: ts.strftime("%Y-%m-%d") in closed_set)]
-
-    # Remove non-positive values
     df = df[df["y"] > 0]
+    df = df.reset_index(drop=True)
+
+    # ── Auto-stockout detection ───────────────────────────────────────────
+    # If qty is < 15% of the local 7-day median, AND the median is healthy
+    # (> 3 units), it's almost certainly a stockout, not real demand. Replace
+    # with the rolling median to avoid teaching the model that 0 is normal.
+    if len(df) >= 14:
+        median7 = df["y"].rolling(7, min_periods=3, center=True).median()
+        suspect = (df["y"] < median7 * 0.15) & (median7 > 3)
+        if suspect.any():
+            df.loc[suspect, "y"] = median7[suspect]
 
     return df.reset_index(drop=True)
+
+
+def compute_bias_correction(product_id: int, conn, lookback_days: int = 30) -> float:
+    """
+    Compute the mean signed forecast error (predicted - actual) for this
+    product over the last N days. Used to bias-correct future forecasts.
+    Returns 0.0 if too little data.
+    """
+    cutoff    = (date.today() - timedelta(days=lookback_days)).isoformat()
+    today_iso = date.today().isoformat()
+    rows = conn.execute("""
+        SELECT fl.predicted, COALESCE((
+            SELECT SUM(s.quantity) FROM sales s
+            WHERE s.product_id=fl.product_id AND s.date=fl.target_date AND s.quantity > 0
+        ), 0) AS actual
+        FROM forecast_log fl
+        WHERE fl.product_id=? AND fl.target_date>=? AND fl.target_date<?
+        GROUP BY fl.target_date
+    """, (product_id, cutoff, today_iso)).fetchall()
+
+    valid = [(float(r["predicted"]), float(r["actual"])) for r in rows
+             if r["predicted"] > 0 and r["actual"] > 0]
+    if len(valid) < 5:
+        return 0.0
+
+    bias     = sum(p - a for p, a in valid) / len(valid)
+    avg_pred = sum(p for p, _ in valid) / len(valid)
+    # Cap correction to ±20% of average prediction to avoid runaway
+    return max(-0.20 * avg_pred, min(0.20 * avg_pred, bias))
 
 
 # ---------------------------------------------------------------------------

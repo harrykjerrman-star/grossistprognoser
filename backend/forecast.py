@@ -8,7 +8,7 @@ import pandas as pd
 from database import get_connection
 
 try:
-    from data_quality import get_cleaned_series, get_quality_report
+    from data_quality import get_cleaned_series, get_quality_report, compute_bias_correction
     _HAS_DQ = True
 except ImportError:
     _HAS_DQ = False
@@ -447,16 +447,73 @@ def get_forecast(product_name: str, days: int = 7) -> dict | None:
     # under-represents)
     if method in ("neuralprophet", "combined_np", "prophet", "combined") and history_days < 365:
         dow_mult = _compute_dow_multipliers(df)
-        # Only blend if the multipliers are meaningfully non-flat
         max_dev = max(abs(v - 1.0) for v in dow_mult.values())
         if max_dev > 0.10:
-            # Blend weight: 30% weekday correction, 70% model output
             blend = 0.30
             for pt in points:
                 day      = pd.Timestamp(pt["date"]).dayofweek
                 mult     = dow_mult.get(day, 1.0)
                 adjusted = pt["predicted"] * ((1 - blend) + blend * mult)
                 pt["predicted"] = round(max(0.0, adjusted), 1)
+
+    # ── Year-over-year signal (≥365 days history) ─────────────────────────
+    # If we have a full year of history, blend in same-day-last-year as a
+    # strong seasonal anchor. 25% weight is enough to catch annual events
+    # the AI may not have generalized from a single observation.
+    if history_days >= 365:
+        try:
+            history_map = {row["ds"].strftime("%Y-%m-%d"): float(row["y"])
+                           for _, row in df.iterrows()}
+            blend_yoy = 0.25
+            for pt in points:
+                d        = pd.Timestamp(pt["date"])
+                last_yr  = (d - pd.Timedelta(days=365)).strftime("%Y-%m-%d")
+                last_val = history_map.get(last_yr)
+                if last_val is not None and last_val > 0:
+                    adjusted = pt["predicted"] * (1 - blend_yoy) + last_val * blend_yoy
+                    pt["predicted"] = round(max(0.0, adjusted), 1)
+                    pt["yoy_used"]  = True
+        except Exception:
+            pass
+
+    # ── Bias correction from recent forecast errors ───────────────────────
+    # Subtract the mean signed error observed in the last 30 days. If we've
+    # been systematically over-predicting by 15%, this nudges us back.
+    if _HAS_DQ:
+        try:
+            bias = compute_bias_correction(product["id"], cur.connection)
+            if abs(bias) > 0.1:
+                for pt in points:
+                    pt["predicted"] = round(max(0.0, pt["predicted"] - bias), 1)
+                    pt["lower"]     = round(max(0.0, pt["lower"]     - bias), 1)
+                    pt["upper"]     = round(max(0.0, pt["upper"]     - bias), 1)
+        except Exception:
+            pass
+
+    # ── Booking-driven scaling (restaurant mode) ──────────────────────────
+    # If specific dates have guest bookings, scale predictions by the ratio
+    # to the typical guest count. Capped to [0.5x, 2.0x] for safety.
+    try:
+        booking_rows = cur.execute(
+            "SELECT date, guests FROM bookings WHERE guests > 0"
+        ).fetchall()
+        if booking_rows:
+            booking_map  = {b["date"]: float(b["guests"]) for b in booking_rows}
+            guest_values = [v for v in booking_map.values() if v > 0]
+            if len(guest_values) >= 3:
+                typical = float(np.median(guest_values))
+                if typical > 0:
+                    for pt in points:
+                        guests = booking_map.get(pt["date"])
+                        if guests is not None and guests > 0:
+                            factor = max(0.5, min(2.0, guests / typical))
+                            if abs(factor - 1.0) > 0.05:
+                                pt["predicted"] = round(max(0.0, pt["predicted"] * factor), 1)
+                                pt["lower"]     = round(max(0.0, pt["lower"]     * factor), 1)
+                                pt["upper"]     = round(max(0.0, pt["upper"]     * factor), 1)
+                                pt["booking_adjusted"] = True
+    except Exception:
+        pass
 
     # Widen confidence intervals when history is short
     points = _adjust_intervals_for_history(points, history_days)
