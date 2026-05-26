@@ -668,6 +668,203 @@ def logout():
 
 
 # ─────────────────────────────────────────
+# Settings – Weather city
+# ─────────────────────────────────────────
+
+@app.get("/api/settings/weather")
+@require_auth
+def get_weather_settings():
+    conn = get_connection()
+    row  = conn.execute("SELECT value FROM settings WHERE key='weather_city'").fetchone()
+    conn.close()
+    return jsonify({"city": row["value"] if row else ""})
+
+
+@app.put("/api/settings/weather")
+@require_auth
+def set_weather_settings():
+    body = request.get_json(silent=True) or {}
+    city = str(body.get("city", "")).strip()[:100]
+    conn = get_connection()
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('weather_city', ?)", (city,))
+    conn.commit(); conn.close()
+    return jsonify({"success": True})
+
+
+@app.get("/api/weather")
+@require_auth
+def get_weather():
+    conn = get_connection()
+    row  = conn.execute("SELECT value FROM settings WHERE key='weather_city'").fetchone()
+    city = row["value"] if row else ""
+    conn.close()
+    if not city:
+        return jsonify({"error": "Ingen stad konfigurerad", "data": [], "city": ""})
+    try:
+        from weather import get_weather_for_city
+        data = get_weather_for_city(city)
+        return jsonify({"city": city, "data": data})
+    except Exception as exc:
+        return jsonify({"error": str(exc), "data": [], "city": city})
+
+
+# ─────────────────────────────────────────
+# Calendar events
+# ─────────────────────────────────────────
+
+@app.get("/api/events")
+@require_auth
+def get_events():
+    conn = get_connection()
+    rows = conn.execute("SELECT * FROM calendar_events ORDER BY date").fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.post("/api/events")
+@require_auth
+def create_event():
+    body       = request.get_json(silent=True) or {}
+    date_str   = str(body.get("date",       "")).strip()
+    name       = str(body.get("name",       "")).strip()
+    event_type = str(body.get("event_type", "other")).strip()
+    note       = str(body.get("note",       "")).strip()[:500]
+    try:
+        multiplier = float(body.get("multiplier", 1.0))
+    except (ValueError, TypeError):
+        multiplier = 1.0
+    if not date_str or not name:
+        return jsonify({"error": "Datum och namn krävs"}), 400
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO calendar_events (date,name,event_type,multiplier,note) VALUES (?,?,?,?,?)",
+        (date_str, name, event_type, multiplier, note)
+    )
+    new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit(); conn.close()
+    return jsonify({"success": True, "id": new_id}), 201
+
+
+@app.put("/api/events/<int:event_id>")
+@require_auth
+def update_event(event_id):
+    body       = request.get_json(silent=True) or {}
+    date_str   = str(body.get("date",       "")).strip()
+    name       = str(body.get("name",       "")).strip()
+    event_type = str(body.get("event_type", "other")).strip()
+    note       = str(body.get("note",       "")).strip()[:500]
+    try:
+        multiplier = float(body.get("multiplier", 1.0))
+    except (ValueError, TypeError):
+        multiplier = 1.0
+    conn = get_connection()
+    conn.execute(
+        "UPDATE calendar_events SET date=?,name=?,event_type=?,multiplier=?,note=? WHERE id=?",
+        (date_str, name, event_type, multiplier, note, event_id)
+    )
+    conn.commit(); conn.close()
+    return jsonify({"success": True})
+
+
+@app.delete("/api/events/<int:event_id>")
+@require_auth
+def delete_event(event_id):
+    conn = get_connection()
+    conn.execute("DELETE FROM calendar_events WHERE id=?", (event_id,))
+    conn.commit(); conn.close()
+    return jsonify({"success": True})
+
+
+# ─────────────────────────────────────────
+# Anomalies
+# ─────────────────────────────────────────
+
+@app.get("/api/anomalies")
+@require_auth
+def get_anomalies():
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT a.id, p.name AS product, a.date, a.predicted, a.actual,
+               a.deviation_pct, a.reason, a.marked_at
+        FROM anomalies a
+        JOIN products p ON a.product_id = p.id
+        ORDER BY a.date DESC
+        LIMIT 60
+    """).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.put("/api/anomalies/<int:anomaly_id>/reason")
+@require_auth
+def mark_anomaly_reason(anomaly_id):
+    body   = request.get_json(silent=True) or {}
+    reason = str(body.get("reason", "")).strip()[:200]
+    now    = datetime.now().isoformat()
+    conn   = get_connection()
+    conn.execute("UPDATE anomalies SET reason=?, marked_at=? WHERE id=?", (reason, now, anomaly_id))
+    conn.commit(); conn.close()
+    return jsonify({"success": True})
+
+
+# ─────────────────────────────────────────
+# Forecast report & accuracy
+# ─────────────────────────────────────────
+
+@app.get("/api/forecast-report")
+@require_auth
+def forecast_report():
+    conn       = get_connection()
+    cutoff     = (date.today() - timedelta(days=30)).isoformat()
+    today_iso  = date.today().isoformat()
+    products   = conn.execute("SELECT id, name FROM products ORDER BY name").fetchall()
+
+    report = []
+    for prod in products:
+        rows = conn.execute("""
+            SELECT fl.target_date, fl.predicted,
+                   COALESCE((
+                       SELECT SUM(s.quantity)
+                       FROM sales s
+                       WHERE s.product_id=fl.product_id AND s.date=fl.target_date
+                   ), 0) AS actual
+            FROM forecast_log fl
+            WHERE fl.product_id=? AND fl.target_date>=? AND fl.target_date<?
+            GROUP BY fl.target_date
+            ORDER BY fl.target_date
+        """, (prod["id"], cutoff, today_iso)).fetchall()
+
+        valid = [(r["predicted"], r["actual"]) for r in rows
+                 if r["actual"] > 0 and r["predicted"] > 0]
+        if not valid:
+            continue
+
+        mape       = sum(abs(a - p) / a for p, a in valid) / len(valid) * 100
+        within_15  = sum(1 for p, a in valid if abs(a - p) / a <= 0.15) / len(valid) * 100
+        chart_data = [{"date": r["target_date"], "predicted": r["predicted"], "actual": r["actual"]}
+                      for r in rows if r["actual"] > 0]
+
+        report.append({
+            "product":       prod["name"],
+            "n":             len(valid),
+            "mape":          round(mape, 1),
+            "within_15pct":  round(within_15, 1),
+            "accuracy_score": round(max(0.0, 100.0 - mape), 1),
+            "chart_data":    chart_data[-30:],
+        })
+
+    report.sort(key=lambda x: x["mape"], reverse=True)
+    avg_acc = round(sum(r["accuracy_score"] for r in report) / len(report), 1) if report else None
+
+    conn.close()
+    return jsonify({
+        "products":                report,
+        "total_products_with_data": len(report),
+        "avg_accuracy":            avg_acc,
+    })
+
+
+# ─────────────────────────────────────────
 # Settings – Zettle integration
 # ─────────────────────────────────────────
 
@@ -1328,7 +1525,36 @@ def upload():
             else:
                 if not prod["stock_sync_date"] or max_date > prod["stock_sync_date"]:
                     cur.execute("UPDATE products SET stock_sync_date=? WHERE id=?", (max_date, prod["id"]))
-        conn.commit(); conn.close()
+        conn.commit()
+
+        # Detect anomalies: compare uploaded actuals against saved forecasts
+        try:
+            for pname, entries in upload_map.items():
+                prod_row = conn.execute("SELECT id FROM products WHERE name=?", (pname,)).fetchone()
+                if not prod_row:
+                    continue
+                pid = prod_row["id"]
+                for dval, qty in entries:
+                    fc_row = conn.execute("""
+                        SELECT predicted FROM forecast_log
+                        WHERE product_id=? AND target_date=?
+                        ORDER BY forecast_date DESC LIMIT 1
+                    """, (pid, dval)).fetchone()
+                    if not fc_row or fc_row["predicted"] <= 0 or qty <= 0:
+                        continue
+                    dev = abs(qty - fc_row["predicted"]) / fc_row["predicted"]
+                    if dev > 0.50:
+                        dev_pct = round((qty - fc_row["predicted"]) / fc_row["predicted"] * 100, 1)
+                        conn.execute("""
+                            INSERT OR REPLACE INTO anomalies
+                            (product_id, date, predicted, actual, deviation_pct)
+                            VALUES (?,?,?,?,?)
+                        """, (pid, dval, fc_row["predicted"], qty, dev_pct))
+            conn.commit()
+        except Exception:
+            pass
+
+        conn.close()
         msg = f"Laddade upp {inserted} försäljningsposter"
         if auto_deducted: msg += f". Förråd minskat: {', '.join(auto_deducted)}"
         return jsonify({"success":True,"message":msg,"products":list(upload_map.keys())})
@@ -1379,6 +1605,25 @@ def forecast(product_name):
     result = get_forecast(product_name, days=days)
     if result is None:
         return jsonify({"error": "Hittades inte eller för lite data"}), 404
+
+    # Save forecast to log for later accuracy evaluation
+    conn  = get_connection()
+    prod  = conn.execute("SELECT id FROM products WHERE name=?", (product_name,)).fetchone()
+    if prod:
+        today_iso = date.today().isoformat()
+        for pt in result.get("forecast", []):
+            try:
+                conn.execute("""
+                    INSERT OR IGNORE INTO forecast_log
+                    (product_id, forecast_date, target_date, predicted, lower_bound, upper_bound, model)
+                    VALUES (?,?,?,?,?,?,?)
+                """, (prod["id"], today_iso, pt["date"], pt["predicted"],
+                      pt.get("lower"), pt.get("upper"), result.get("method", "prophet")))
+            except Exception:
+                pass
+        conn.commit()
+    conn.close()
+
     return jsonify(result)
 
 

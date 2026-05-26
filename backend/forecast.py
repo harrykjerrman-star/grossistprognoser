@@ -16,8 +16,15 @@ try:
 except ImportError:
     _PROPHET = False
 
-SAFETY_MARGIN = 0.10
+try:
+    from xgboost import XGBRegressor as _XGBRegressor
+    _HAS_XGB = True
+except ImportError:
+    _HAS_XGB = False
+
+SAFETY_MARGIN   = 0.10
 MIN_PROPHET_ROWS = 10
+MIN_XGB_ROWS     = 30
 
 
 # ---------------------------------------------------------------------------
@@ -25,7 +32,6 @@ MIN_PROPHET_ROWS = 10
 # ---------------------------------------------------------------------------
 
 def _easter(year: int) -> date:
-    """Anonymous Gregorian algorithm for Easter Sunday."""
     a = year % 19
     b, c = divmod(year, 100)
     d, e = divmod(b, 4)
@@ -36,18 +42,16 @@ def _easter(year: int) -> date:
     lv = (32 + 2 * e + 2 * i - h - k) % 7
     m = (a + 11 * h + 22 * lv) // 451
     month = (h + lv - 7 * m + 114) // 31
-    day = ((h + lv - 7 * m + 114) % 31) + 1
+    day   = ((h + lv - 7 * m + 114) % 31) + 1
     return date(year, month, day)
 
 
 def _midsommar_saturday(year: int) -> date:
-    """Midsommar = Saturday between June 20 and 26."""
     jun20 = date(year, 6, 20)
     return jun20 + timedelta(days=(5 - jun20.weekday()) % 7)
 
 
 def _black_friday(year: int) -> date:
-    """4th Friday of November (Swedish retail event)."""
     nov1 = date(year, 11, 1)
     return nov1 + timedelta(days=(4 - nov1.weekday()) % 7 + 21)
 
@@ -58,36 +62,149 @@ def _swedish_holidays(years) -> pd.DataFrame:
         e   = _easter(year)
         mid = _midsommar_saturday(year)
         bf  = _black_friday(year)
-
         entries = [
-            # Fixed public holidays
-            ("Nyårsdagen",          date(year, 1,  1),  -1, 1),
-            ("Trettondagen",        date(year, 1,  6),  -1, 1),
-            ("Valborg",             date(year, 4, 30),  -1, 1),
-            ("Nationaldagen",       date(year, 6,  6),  -1, 1),
-            ("Julafton",            date(year, 12, 24), -2, 1),
-            ("Juldag",              date(year, 12, 25), -2, 2),
-            ("Annandag jul",        date(year, 12, 26), -1, 1),
-            ("Nyårsafton",          date(year, 12, 31), -1, 1),
-            # Easter cluster
-            ("Långfredag",          e - timedelta(2),   -1, 0),
-            ("Påskafton",           e - timedelta(1),   -1, 0),
-            ("Påskdagen",           e,                   0, 1),
-            ("Annandag påsk",       e + timedelta(1),    0, 1),
-            ("Kristi himmelsfärd",  e + timedelta(39),   0, 1),
-            ("Pingstdagen",         e + timedelta(49),   0, 1),
-            # Midsommar
-            ("Midsommarafton",      mid - timedelta(1), -1, 0),
-            ("Midsommardagen",      mid,                 0, 1),
-            # Retail peak
-            ("Black Friday",        bf,                 -3, 1),
+            ("Nyårsdagen",         date(year, 1,  1),  -1, 1),
+            ("Trettondagen",       date(year, 1,  6),  -1, 1),
+            ("Valborg",            date(year, 4, 30),  -1, 1),
+            ("Nationaldagen",      date(year, 6,  6),  -1, 1),
+            ("Julafton",           date(year, 12, 24), -2, 1),
+            ("Juldag",             date(year, 12, 25), -2, 2),
+            ("Annandag jul",       date(year, 12, 26), -1, 1),
+            ("Nyårsafton",         date(year, 12, 31), -1, 1),
+            ("Långfredag",         e - timedelta(2),   -1, 0),
+            ("Påskafton",          e - timedelta(1),   -1, 0),
+            ("Påskdagen",          e,                   0, 1),
+            ("Annandag påsk",      e + timedelta(1),    0, 1),
+            ("Kristi himmelsfärd", e + timedelta(39),   0, 1),
+            ("Pingstdagen",        e + timedelta(49),   0, 1),
+            ("Midsommarafton",     mid - timedelta(1), -1, 0),
+            ("Midsommardagen",     mid,                 0, 1),
+            ("Black Friday",       bf,                 -3, 1),
         ]
-
         for name, d, lw, uw in entries:
             rows.append({"holiday": name, "ds": pd.Timestamp(d),
                          "lower_window": lw, "upper_window": uw})
-
     return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------------------
+# Forecast backends
+# ---------------------------------------------------------------------------
+
+def _prophet_forecast(df: pd.DataFrame, days: int) -> list[dict]:
+    years    = range(df["ds"].dt.year.min() - 1, datetime.now().year + 3)
+    holidays = _swedish_holidays(years)
+    model = Prophet(
+        holidays=holidays,
+        yearly_seasonality=True,
+        weekly_seasonality=True,
+        daily_seasonality=False,
+        seasonality_mode="multiplicative",
+        interval_width=0.80,
+    )
+    model.fit(df)
+    future = model.make_future_dataframe(periods=days, freq="D")
+    fc     = model.predict(future).tail(days)
+    return [
+        {
+            "date":      row["ds"].strftime("%Y-%m-%d"),
+            "predicted": round(max(0.0, row["yhat"]),       1),
+            "lower":     round(max(0.0, row["yhat_lower"]), 1),
+            "upper":     round(max(0.0, row["yhat_upper"]), 1),
+        }
+        for _, row in fc.iterrows()
+    ]
+
+
+def _xgboost_forecast(df: pd.DataFrame, days: int) -> list[dict]:
+    """XGBoost recursive forecast using lag/calendar features."""
+    if not _HAS_XGB:
+        return _simple_forecast(df, days)
+    try:
+        df2 = df.copy()
+        df2["dow"]   = df2["ds"].dt.dayofweek
+        df2["month"] = df2["ds"].dt.month
+        df2["woy"]   = df2["ds"].dt.isocalendar().week.astype(int)
+        df2["doy"]   = df2["ds"].dt.dayofyear
+        for lag in [1, 2, 3, 7, 14]:
+            df2[f"lag_{lag}"] = df2["y"].shift(lag)
+        df2["roll7"]  = df2["y"].rolling(7,  min_periods=1).mean()
+        df2["roll14"] = df2["y"].rolling(14, min_periods=1).mean()
+
+        train = df2.dropna()
+        if len(train) < 15:
+            return _simple_forecast(df, days)
+
+        feat_cols = [c for c in
+                     ["dow", "month", "woy", "doy",
+                      "lag_1", "lag_2", "lag_3", "lag_7", "lag_14",
+                      "roll7", "roll14"]
+                     if c in train.columns]
+
+        model = _XGBRegressor(
+            n_estimators=150, max_depth=4, learning_rate=0.08,
+            subsample=0.8, colsample_bytree=0.8,
+            objective="reg:squarederror", verbosity=0, random_state=42,
+        )
+        model.fit(train[feat_cols].values, train["y"].values)
+
+        history   = list(df["y"].values)
+        last_date = df["ds"].max()
+        std_r     = float(np.std(history[-14:]) if len(history) >= 14 else np.std(history))
+        preds: list[dict] = []
+
+        for i in range(1, days + 1):
+            fd = last_date + timedelta(days=i)
+
+            def _lag(n: int) -> float:
+                idx = len(history) - n
+                return history[idx] if idx >= 0 else float(np.mean(history[-7:]))
+
+            row_dict = {
+                "dow":    fd.dayofweek,
+                "month":  fd.month,
+                "woy":    int(fd.isocalendar()[1]),
+                "doy":    fd.timetuple().tm_yday,
+                "lag_1":  _lag(1), "lag_2": _lag(2), "lag_3": _lag(3),
+                "lag_7":  _lag(7), "lag_14": _lag(14),
+                "roll7":  float(np.mean(history[-7:]))  if len(history) >= 7  else float(np.mean(history)),
+                "roll14": float(np.mean(history[-14:])) if len(history) >= 14 else float(np.mean(history)),
+            }
+            feat = np.array([[row_dict[c] for c in feat_cols]])
+            pred = float(max(0.0, model.predict(feat)[0]))
+
+            preds.append({
+                "date":      fd.strftime("%Y-%m-%d"),
+                "predicted": round(pred, 1),
+                "lower":     round(max(0.0, pred - std_r), 1),
+                "upper":     round(pred + std_r, 1),
+            })
+            history.append(pred)
+
+        return preds
+    except Exception:
+        return _simple_forecast(df, days)
+
+
+def _simple_forecast(df: pd.DataFrame, days: int) -> list[dict]:
+    """Exponentially weighted moving average with weekday seasonality."""
+    values  = df["y"].values
+    weights = np.exp(np.linspace(0, 1, len(values)))
+    base    = float(np.average(values, weights=weights))
+    std     = float(values.std()) if len(values) > 1 else base * 0.2
+    last_date = df["ds"].max()
+    wf = {0: 0.85, 1: 0.90, 2: 0.93, 3: 0.97, 4: 1.25, 5: 1.35, 6: 1.10}
+    points = []
+    for i in range(1, days + 1):
+        d    = last_date + timedelta(days=i)
+        pred = max(0.0, base * wf.get(d.weekday(), 1.0))
+        points.append({
+            "date":      d.strftime("%Y-%m-%d"),
+            "predicted": round(pred, 1),
+            "lower":     round(max(0.0, pred - std), 1),
+            "upper":     round(pred + std, 1),
+        })
+    return points
 
 
 # ---------------------------------------------------------------------------
@@ -108,43 +225,87 @@ def get_forecast(product_name: str, days: int = 7) -> dict | None:
         return None
 
     cur.execute(
-        """
-        SELECT date, SUM(quantity) AS qty
-        FROM   sales
-        WHERE  product_id = ?
-        GROUP  BY date
-        ORDER  BY date
-        """,
+        "SELECT date, SUM(quantity) AS qty FROM sales WHERE product_id=? GROUP BY date ORDER BY date",
         (product["id"],),
     )
     rows = cur.fetchall()
-    conn.close()
 
     if len(rows) < 2:
+        conn.close()
         return None
 
     df = pd.DataFrame([{"ds": r["date"], "y": float(r["qty"])} for r in rows])
     df["ds"] = pd.to_datetime(df["ds"])
     df = df.sort_values("ds").reset_index(drop=True)
 
-    current_stock  = product["current_stock"]
-    stock_init     = bool(product["stock_initialized"])
-    stock_updated  = product["stock_updated_at"]
+    current_stock = product["current_stock"]
+    stock_init    = bool(product["stock_initialized"])
+    stock_updated = product["stock_updated_at"]
 
-    method = "prophet"
+    # ── Choose model ──────────────────────────────────────────────────────────
+    method = "fallback"
+    points: list[dict] = []
+
     if _PROPHET and len(df) >= MIN_PROPHET_ROWS:
         try:
-            points = _prophet_forecast(df, days)
+            prophet_pts = _prophet_forecast(df, days)
+            if _HAS_XGB and len(df) >= MIN_XGB_ROWS:
+                xgb_pts = _xgboost_forecast(df, days)
+                combined = []
+                for pp, xp in zip(prophet_pts, xgb_pts):
+                    pred = round(max(0.0, 0.6 * pp["predicted"] + 0.4 * xp["predicted"]), 1)
+                    combined.append({
+                        "date":      pp["date"],
+                        "predicted": pred,
+                        "lower":     round(min(pp["lower"],  xp["lower"]),  1),
+                        "upper":     round(max(pp["upper"],  xp["upper"]),  1),
+                    })
+                points = combined
+                method = "combined"
+            else:
+                points = prophet_pts
+                method = "prophet"
         except Exception:
             points = _simple_forecast(df, days)
             method = "fallback"
     else:
         points = _simple_forecast(df, days)
-        method = "fallback"
+
+    # ── Apply calendar event multipliers ─────────────────────────────────────
+    today_iso = date.today().isoformat()
+    events    = cur.execute(
+        "SELECT date, multiplier FROM calendar_events WHERE date >= ?", (today_iso,)
+    ).fetchall()
+    event_map = {e["date"]: e["multiplier"] for e in events}
+    for pt in points:
+        if pt["date"] in event_map:
+            m = event_map[pt["date"]]
+            pt["predicted"] = round(max(0.0, pt["predicted"] * m), 1)
+            pt["lower"]     = round(max(0.0, pt["lower"]     * m), 1)
+            pt["upper"]     = round(max(0.0, pt["upper"]     * m), 1)
+            pt["event"]     = True
+
+    # ── Apply weather multipliers ─────────────────────────────────────────────
+    try:
+        city_row = cur.execute("SELECT value FROM settings WHERE key='weather_city'").fetchone()
+        if city_row and city_row["value"]:
+            from weather import get_weather_for_city, weather_multipliers
+            wdata = get_weather_for_city(city_row["value"])
+            wmults = weather_multipliers(wdata)
+            for pt in points:
+                if pt["date"] in wmults:
+                    m = wmults[pt["date"]]
+                    pt["predicted"] = round(max(0.0, pt["predicted"] * m), 1)
+                    pt["lower"]     = round(max(0.0, pt["lower"]     * m), 1)
+                    pt["upper"]     = round(max(0.0, pt["upper"]     * m), 1)
+                    pt["weather_adjusted"] = True
+    except Exception:
+        pass
+
+    conn.close()
 
     daily_avg  = float(df["y"].mean())
     days_stock = (current_stock / daily_avg) if (daily_avg > 0 and stock_init) else None
-
     total_forecast = sum(p["predicted"] for p in points)
 
     if stock_init:
@@ -177,61 +338,6 @@ def get_forecast(product_name: str, days: int = 7) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
-# Forecast backends
-# ---------------------------------------------------------------------------
-
-def _prophet_forecast(df: pd.DataFrame, days: int) -> list[dict]:
-    years = range(df["ds"].dt.year.min() - 1, datetime.now().year + 3)
-    holidays = _swedish_holidays(years)
-
-    model = Prophet(
-        holidays=holidays,
-        yearly_seasonality=True,
-        weekly_seasonality=True,
-        daily_seasonality=False,
-        seasonality_mode="multiplicative",
-        interval_width=0.80,
-    )
-    model.fit(df)
-
-    future = model.make_future_dataframe(periods=days, freq="D")
-    fc = model.predict(future).tail(days)
-
-    return [
-        {
-            "date":      row["ds"].strftime("%Y-%m-%d"),
-            "predicted": round(max(0.0, row["yhat"]),       1),
-            "lower":     round(max(0.0, row["yhat_lower"]), 1),
-            "upper":     round(max(0.0, row["yhat_upper"]), 1),
-        }
-        for _, row in fc.iterrows()
-    ]
-
-
-def _simple_forecast(df: pd.DataFrame, days: int) -> list[dict]:
-    """Exponentially weighted moving average with weekday seasonality."""
-    values  = df["y"].values
-    weights = np.exp(np.linspace(0, 1, len(values)))
-    base    = float(np.average(values, weights=weights))
-    std     = float(values.std()) if len(values) > 1 else base * 0.2
-
-    last_date = df["ds"].max()
-    wf = {0: 0.85, 1: 0.90, 2: 0.93, 3: 0.97, 4: 1.25, 5: 1.35, 6: 1.10}
-
-    points = []
-    for i in range(1, days + 1):
-        d    = last_date + timedelta(days=i)
-        pred = max(0.0, base * wf.get(d.weekday(), 1.0))
-        points.append({
-            "date":      d.strftime("%Y-%m-%d"),
-            "predicted": round(pred, 1),
-            "lower":     round(max(0.0, pred - std), 1),
-            "upper":     round(pred + std, 1),
-        })
-    return points
-
-
-# ---------------------------------------------------------------------------
 # Demo data generator
 # ---------------------------------------------------------------------------
 
@@ -247,13 +353,14 @@ def generate_demo_data() -> None:
         "Yoghurt Naturell 1L": {"base": 22, "stock": 200},
         "Grädde 1L":           {"base": 18, "stock": 5},
     }
-
     wf = {0: 0.80, 1: 0.85, 2: 0.90, 3: 0.95, 4: 1.30, 5: 1.40, 6: 1.10}
 
     conn = get_connection()
     cur  = conn.cursor()
     cur.execute("DELETE FROM sales")
     cur.execute("DELETE FROM products")
+    cur.execute("DELETE FROM forecast_log")
+    cur.execute("DELETE FROM anomalies")
 
     end_date   = datetime.now().date()
     start_date = end_date - timedelta(days=89)
@@ -261,22 +368,17 @@ def generate_demo_data() -> None:
 
     for name, cfg in products.items():
         cur.execute(
-            """INSERT INTO products
-               (name, current_stock, stock_initialized, stock_updated_at, stock_sync_date)
-               VALUES (?, ?, 1, ?, ?)""",
+            "INSERT INTO products (name, current_stock, stock_initialized, stock_updated_at, stock_sync_date) VALUES (?,?,1,?,?)",
             (name, cfg["stock"], now_iso, end_date.isoformat()),
         )
-        pid = cur.lastrowid
-
+        pid     = cur.lastrowid
         current = start_date
         while current <= end_date:
             day_f   = wf.get(current.weekday(), 1.0)
             month_f = 1.0 + 0.12 * math.sin(2 * math.pi * current.month / 12)
             qty     = max(1, int(cfg["base"] * day_f * month_f + random.gauss(0, cfg["base"] * 0.15)))
-            cur.execute(
-                "INSERT INTO sales (product_id, date, quantity) VALUES (?, ?, ?)",
-                (pid, current.isoformat(), qty),
-            )
+            cur.execute("INSERT INTO sales (product_id, date, quantity) VALUES (?,?,?)",
+                        (pid, current.isoformat(), qty))
             current += timedelta(days=1)
 
     conn.commit()

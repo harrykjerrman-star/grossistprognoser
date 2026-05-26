@@ -280,6 +280,7 @@
       <button class="nav-btn"        id="nav-menu"      onclick="showSection('menu')">Dagsmeny</button>
       <button class="nav-btn"        id="nav-waste"     onclick="showSection('waste')">Svinn</button>
       <button class="nav-btn"        id="nav-stock"     onclick="showSection('stock')">Förråd</button>
+      <button class="nav-btn"        id="nav-report"    onclick="showSection('report')">Prognosrapport</button>
       <button class="nav-btn"        id="nav-settings"  onclick="showSection('settings')">Inställningar</button>
     </div>
   </nav>
@@ -332,6 +333,27 @@
         <p class="text-sm font-semibold text-white">Recept &amp; portioner</p>
         <p class="text-xs text-slate-500 mt-1">Hantera recept och se hur många portioner du kan laga</p>
       </button>
+    </div>
+
+    <!-- Weather + Anomalies row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Weather widget -->
+      <div class="bg-slate-800 border border-slate-700 p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Väderprognos</h3>
+          <span id="weatherCityBadge" class="text-xs text-slate-600"></span>
+        </div>
+        <div id="weatherWidget"><p class="text-slate-600 text-xs py-2">Konfigurera din stad under Inställningar för att se väderprognos.</p></div>
+      </div>
+
+      <!-- Anomalies widget -->
+      <div class="bg-slate-800 border border-slate-700 p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Avvikelser — senaste 14 dagarna</h3>
+          <button onclick="loadAnomaliesWidget()" class="text-xs text-slate-500 hover:text-white">↺</button>
+        </div>
+        <div id="anomalyWidget"><p class="text-slate-600 text-xs py-2">Inga avvikelser registrerade.</p></div>
+      </div>
     </div>
   </div>
 
@@ -675,9 +697,134 @@
     </div>
   </div>
 
+  <!-- ══════ PROGNOSRAPPORT ══════ -->
+  <div id="sec-report" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
+    <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Prognosrapport</h2>
+
+    <!-- Summary KPIs -->
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div class="bg-slate-800 border border-slate-700 p-5">
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Genomsnittlig noggrannhet</p>
+        <p class="text-3xl font-bold text-emerald-400 mt-2" id="reportAvgAccuracy">–</p>
+        <p class="text-xs text-slate-600 mt-1">senaste 30 dagarna</p>
+      </div>
+      <div class="bg-slate-800 border border-slate-700 p-5">
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Produkter med data</p>
+        <p class="text-3xl font-bold text-white mt-2" id="reportProductCount">–</p>
+        <p class="text-xs text-slate-600 mt-1">med prognoslogg</p>
+      </div>
+      <div class="bg-slate-800 border border-slate-700 p-5 col-span-2 md:col-span-1">
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Svårast att förutsäga</p>
+        <p class="text-base font-bold text-amber-400 mt-2 truncate" id="reportHardest">–</p>
+        <p class="text-xs text-slate-600 mt-1">högst medelavvikelse</p>
+      </div>
+    </div>
+
+    <!-- Accuracy table -->
+    <div class="bg-slate-800 border border-slate-700">
+      <div class="px-6 py-4 border-b border-slate-700">
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Träffsäkerhet per produkt</h3>
+      </div>
+      <div id="reportTableContainer" class="p-4">
+        <p class="text-slate-600 text-sm text-center py-6">Laddar rapport...</p>
+      </div>
+    </div>
+
+    <!-- Forecast vs actual chart -->
+    <div class="bg-slate-800 border border-slate-700 p-5">
+      <div class="flex flex-wrap items-center gap-4 mb-4">
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Prognos vs faktisk försäljning</h3>
+        <select id="reportProductSelect" onchange="renderReportChart()"
+          class="bg-slate-700 border border-slate-600 px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-rose-700 ml-auto">
+          <option value="">– Välj produkt –</option>
+        </select>
+      </div>
+      <div id="reportChartPlaceholder" class="flex items-center justify-center h-48 text-slate-600 text-sm">Välj en produkt ovan</div>
+      <div id="reportChartWrap" class="hidden relative h-56"><canvas id="reportChart"></canvas></div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="bg-slate-800 border border-slate-700 p-5">
+      <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Rekommendationer</h3>
+      <ul id="reportRecommendations" class="space-y-2 text-sm text-slate-300"></ul>
+    </div>
+  </div>
+
   <!-- ══════ INSTÄLLNINGAR ══════ -->
   <div id="sec-settings" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
     <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Inställningar &amp; Integrationer</h2>
+
+    <!-- Weather city -->
+    <div class="bg-slate-800 border border-slate-700">
+      <div class="px-6 py-4 border-b border-slate-700">
+        <h3 class="text-sm font-semibold text-white">Väderprognos</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Ange din stad för att se väder i dashboarden och låta prognoser justeras för regn/extrem kyla</p>
+      </div>
+      <div class="p-6 flex flex-wrap gap-3 items-end">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Stad</label>
+          <input type="text" id="weatherCityInput" placeholder="t.ex. Stockholm"
+            class="w-48 bg-slate-700 border border-slate-600 px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+        </div>
+        <button onclick="saveWeatherCity()" class="text-sm bg-rose-800 hover:bg-rose-700 text-white px-5 py-2.5 font-medium transition-colors">Spara</button>
+        <p class="text-xs text-slate-600 w-full mt-1">Stödda städer: Stockholm, Göteborg, Malmö, Uppsala, Västerås, Örebro, Linköping, Helsingborg, Jönköping, Norrköping med flera.</p>
+      </div>
+    </div>
+
+    <!-- Calendar events -->
+    <div class="bg-slate-800 border border-slate-700">
+      <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-semibold text-white">Händelsekalender</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Märk upp kampanjer, helgdagar och bokningar — prognoser justeras automatiskt med din multiplikator</p>
+        </div>
+        <button onclick="toggleEventForm()" class="text-xs bg-rose-800 hover:bg-rose-700 text-white px-3 py-1.5 font-medium transition-colors">+ Lägg till händelse</button>
+      </div>
+
+      <!-- Add/edit event form -->
+      <div id="eventForm" class="hidden px-6 py-4 border-b border-slate-700 bg-slate-700/20">
+        <input type="hidden" id="editEventId">
+        <div class="flex flex-wrap gap-3 items-end">
+          <div>
+            <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1.5">Datum</label>
+            <input type="date" id="eventDate" class="bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1.5">Namn</label>
+            <input type="text" id="eventName" placeholder="t.ex. Midsommar" maxlength="100"
+              class="w-40 bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1.5">Typ</label>
+            <select id="eventType" class="bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+              <option value="holiday">Helgdag</option>
+              <option value="campaign">Kampanj</option>
+              <option value="booking">Stor bokning</option>
+              <option value="closed">Stängt</option>
+              <option value="other">Övrigt</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1.5">Multiplikator</label>
+            <input type="number" id="eventMultiplier" value="1.0" min="0" max="10" step="0.1"
+              class="w-20 bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700"
+              title="1.0 = normal, 2.0 = dubbel försäljning, 0.0 = stängt">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1.5">Notering</label>
+            <input type="text" id="eventNote" placeholder="Valfri notering" maxlength="200"
+              class="w-44 bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+          </div>
+          <button onclick="saveEvent()" class="text-sm bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 font-medium transition-colors">Spara</button>
+          <button onclick="toggleEventForm()" class="text-sm text-slate-400 hover:text-white px-3 py-2 border border-slate-600 transition-colors">Avbryt</button>
+        </div>
+        <p class="text-xs text-slate-600 mt-2">Multiplikator: 1.0 = normal, 2.0 = dubbel prognos, 0.5 = halverad, 0.0 = stängt</p>
+      </div>
+
+      <div id="eventsContainer" class="p-4">
+        <p class="text-slate-600 text-sm text-center py-4">Inga händelser registrerade.</p>
+      </div>
+    </div>
 
     <!-- Zettle integration -->
     <div class="bg-slate-800 border border-slate-700">
@@ -805,7 +952,7 @@ const UPLOAD_TYPES = {
 };
 let _mappingState = {file:null, type:null};
 
-const SECTIONS = ['dash','import','forecast','recs','suppliers','recipes','menu','waste','stock','settings'];
+const SECTIONS = ['dash','import','forecast','recs','suppliers','recipes','menu','waste','stock','report','settings'];
 
 // ============================================================
 // Init
@@ -826,6 +973,8 @@ document.addEventListener('DOMContentLoaded', () => {
 function initDashboard() {
   loadProducts();
   loadDashboard();
+  loadWeatherWidget();
+  loadAnomaliesWidget();
 }
 
 // ============================================================
@@ -837,14 +986,15 @@ function showSection(name) {
     const nb = document.getElementById(`nav-${s}`);
     if (nb) nb.classList.toggle('active', s === name);
   });
-  if (name==='dash')      loadDashboard();
+  if (name==='dash')      { loadDashboard(); loadWeatherWidget(); loadAnomaliesWidget(); }
   if (name==='recs')      loadRecommendations();
   if (name==='suppliers') loadSuppliers();
   if (name==='recipes')   loadRecipes();
   if (name==='menu')      loadMenuSection();
   if (name==='waste')     loadWasteReport();
   if (name==='stock')     { loadStockTable(); loadExpiryTable(); }
-  if (name==='settings')  loadZettleStatus();
+  if (name==='report')    loadForecastReport();
+  if (name==='settings')  { loadZettleStatus(); loadWeatherSettings(); loadEvents(); }
 }
 
 // ============================================================
@@ -2298,6 +2448,345 @@ async function loadSyncLog() {
   } catch(err) {
     c.innerHTML = `<p class="text-red-400 text-sm text-center py-4">Fel: ${escHtml(err.message)}</p>`;
   }
+}
+
+// ============================================================
+// Weather widget
+// ============================================================
+async function loadWeatherWidget() {
+  try {
+    const res  = await api('/api/weather');
+    const data = await res.json();
+    const el   = document.getElementById('weatherWidget');
+    const badge = document.getElementById('weatherCityBadge');
+    if (!el) return;
+    if (!data.data || !data.data.length) {
+      el.innerHTML = '<p class="text-slate-600 text-xs py-2">Konfigurera din stad under Inställningar för att se väderprognos.</p>';
+      return;
+    }
+    if (badge) badge.textContent = data.city;
+    el.innerHTML = `<div class="flex gap-2 overflow-x-auto pb-1">${data.data.map(d=>`
+      <div class="flex-shrink-0 text-center bg-slate-700/40 border border-slate-700 px-3 py-2 min-w-[64px]">
+        <p class="text-xs text-slate-500">${d.date.slice(5)}</p>
+        <p class="text-xl my-1">${d.emoji}</p>
+        <p class="text-xs font-semibold text-white">${d.temp_max}°</p>
+        <p class="text-xs text-slate-500">${d.temp_min}°</p>
+        ${d.precipitation>0.5?`<p class="text-xs text-sky-400 mt-0.5">${d.precipitation}mm</p>`:''}
+      </div>`).join('')}</div>`;
+  } catch(_) {}
+}
+
+// ============================================================
+// Anomalies widget (dashboard)
+// ============================================================
+const ANOMALY_REASONS = [
+  ['kampanj','Kampanj'],['helgdag','Helgdag'],['evenemang','Evenemang'],
+  ['fel_data','Fel i data'],['ovrigt','Övrigt']
+];
+
+async function loadAnomaliesWidget() {
+  const el = document.getElementById('anomalyWidget');
+  if (!el) return;
+  try {
+    const res  = await api('/api/anomalies');
+    const rows = await res.json();
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-14);
+    const recent = rows.filter(r => new Date(r.date) >= cutoff);
+    if (!recent.length) {
+      el.innerHTML = '<p class="text-slate-600 text-xs py-2">Inga avvikelser de senaste 14 dagarna.</p>';
+      return;
+    }
+    el.innerHTML = `<div class="space-y-2">${recent.slice(0,8).map(a=>{
+      const sign = a.deviation_pct > 0 ? '+' : '';
+      const cls  = a.deviation_pct > 0 ? 'text-amber-400' : 'text-sky-400';
+      const opts = ANOMALY_REASONS.map(([v,l])=>`<option value="${v}"${a.reason===v?' selected':''}>${l}</option>`).join('');
+      return `<div class="flex flex-wrap items-center gap-2 text-xs py-1.5 border-b border-slate-700/50 last:border-0">
+        <span class="text-slate-400 font-medium w-20 flex-shrink-0">${a.date}</span>
+        <span class="text-white truncate flex-1">${escHtml(a.product)}</span>
+        <span class="${cls} font-semibold flex-shrink-0">${sign}${a.deviation_pct}%</span>
+        <select onchange="markAnomalyReason(${a.id},this.value)"
+          class="bg-slate-700 border border-slate-600 px-1.5 py-0.5 text-white text-xs focus:outline-none flex-shrink-0">
+          <option value="">Markera orsak</option>${opts}
+        </select>
+      </div>`;
+    }).join('')}</div>`;
+  } catch(_) {}
+}
+
+async function markAnomalyReason(id, reason) {
+  try {
+    await api(`/api/anomalies/${id}/reason`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({reason})
+    });
+    showAlert('Orsak sparad','success');
+  } catch(err){ showAlert(err.message,'error'); }
+}
+
+// ============================================================
+// Weather settings
+// ============================================================
+async function loadWeatherSettings() {
+  try {
+    const res  = await api('/api/settings/weather');
+    const data = await res.json();
+    const inp  = document.getElementById('weatherCityInput');
+    if (inp && data.city) inp.value = data.city;
+  } catch(_) {}
+}
+
+async function saveWeatherCity() {
+  const city = (document.getElementById('weatherCityInput')?.value || '').trim();
+  try {
+    const res  = await api('/api/settings/weather', {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({city})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showAlert(city ? `Väderstad satt till ${city}` : 'Väderstad borttagen','success');
+    await loadWeatherWidget();
+  } catch(err){ showAlert(err.message,'error'); }
+}
+
+// ============================================================
+// Calendar events
+// ============================================================
+let _eventsData = [];
+
+async function loadEvents() {
+  try {
+    const res  = await api('/api/events');
+    _eventsData = await res.json();
+    renderEventsTable();
+  } catch(_) {}
+}
+
+function renderEventsTable() {
+  const c = document.getElementById('eventsContainer');
+  if (!c) return;
+  if (!_eventsData.length) {
+    c.innerHTML = '<p class="text-slate-600 text-sm text-center py-4">Inga händelser registrerade.</p>';
+    return;
+  }
+  const typeLabels = {holiday:'Helgdag',campaign:'Kampanj',booking:'Stor bokning',closed:'Stängt',other:'Övrigt'};
+  c.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead><tr class="text-slate-500 text-xs uppercase tracking-wider text-left border-b border-slate-700">
+      <th class="pb-2 pr-4 font-semibold">Datum</th>
+      <th class="pb-2 pr-4 font-semibold">Namn</th>
+      <th class="pb-2 pr-4 font-semibold">Typ</th>
+      <th class="pb-2 pr-4 font-semibold text-right">Multiplikator</th>
+      <th class="pb-2 font-semibold text-right"></th>
+    </tr></thead>
+    <tbody class="divide-y divide-slate-700/40">
+    ${_eventsData.map(e=>`<tr class="hover:bg-slate-700/10">
+      <td class="py-2 pr-4 text-slate-300 font-mono text-xs">${e.date}</td>
+      <td class="py-2 pr-4 text-white">${escHtml(e.name)}${e.note?`<span class="text-slate-500 text-xs ml-1.5">${escHtml(e.note)}</span>`:''}</td>
+      <td class="py-2 pr-4 text-slate-400 text-xs">${typeLabels[e.event_type]||e.event_type}</td>
+      <td class="py-2 pr-4 text-right font-semibold ${e.multiplier>1?'text-emerald-400':e.multiplier<1?'text-amber-400':'text-slate-400'}">${e.multiplier}×</td>
+      <td class="py-2 text-right">
+        <div class="inline-flex gap-2">
+          <button onclick="editEvent(${e.id})" class="text-xs text-slate-500 hover:text-white px-2 py-0.5 border border-slate-600 hover:border-slate-400 transition-colors">Redigera</button>
+          <button onclick="deleteEvent(${e.id})" class="text-xs text-slate-600 hover:text-red-400 transition-colors px-1">✕</button>
+        </div>
+      </td>
+    </tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+function toggleEventForm(clear=true) {
+  const form = document.getElementById('eventForm');
+  const hidden = form.classList.contains('hidden');
+  form.classList.toggle('hidden', !hidden);
+  if (hidden && clear) {
+    document.getElementById('editEventId').value = '';
+    document.getElementById('eventDate').value   = new Date().toISOString().slice(0,10);
+    document.getElementById('eventName').value   = '';
+    document.getElementById('eventType').value   = 'holiday';
+    document.getElementById('eventMultiplier').value = '1.0';
+    document.getElementById('eventNote').value   = '';
+    document.getElementById('eventDate').focus();
+  }
+}
+
+function editEvent(id) {
+  const ev = _eventsData.find(e=>e.id===id);
+  if (!ev) return;
+  document.getElementById('editEventId').value      = ev.id;
+  document.getElementById('eventDate').value        = ev.date;
+  document.getElementById('eventName').value        = ev.name;
+  document.getElementById('eventType').value        = ev.event_type;
+  document.getElementById('eventMultiplier').value  = ev.multiplier;
+  document.getElementById('eventNote').value        = ev.note || '';
+  const form = document.getElementById('eventForm');
+  form.classList.remove('hidden');
+  document.getElementById('eventName').focus();
+}
+
+async function saveEvent() {
+  const id         = document.getElementById('editEventId').value;
+  const date_str   = document.getElementById('eventDate').value.trim();
+  const name       = document.getElementById('eventName').value.trim();
+  const event_type = document.getElementById('eventType').value;
+  const multiplier = parseFloat(document.getElementById('eventMultiplier').value) || 1.0;
+  const note       = document.getElementById('eventNote').value.trim();
+  if (!date_str || !name) { showAlert('Datum och namn krävs','error'); return; }
+  try {
+    const method = id ? 'PUT' : 'POST';
+    const path   = id ? `/api/events/${id}` : '/api/events';
+    const res    = await api(path, {method, headers:{'Content-Type':'application/json'},
+                              body: JSON.stringify({date:date_str,name,event_type,multiplier,note})});
+    const data   = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showAlert(id ? 'Händelse uppdaterad' : 'Händelse tillagd','success');
+    toggleEventForm(true);
+    document.getElementById('eventForm').classList.add('hidden');
+    await loadEvents();
+  } catch(err){ showAlert(err.message,'error'); }
+}
+
+async function deleteEvent(id) {
+  if (!confirm('Ta bort händelsen?')) return;
+  try {
+    await api(`/api/events/${id}`, {method:'DELETE'});
+    showAlert('Händelse borttagen','success');
+    await loadEvents();
+  } catch(err){ showAlert(err.message,'error'); }
+}
+
+// ============================================================
+// Forecast report
+// ============================================================
+let _reportData = null;
+let _reportChartInst = null;
+
+async function loadForecastReport() {
+  try {
+    document.getElementById('reportAvgAccuracy').textContent = '–';
+    document.getElementById('reportProductCount').textContent = '–';
+    document.getElementById('reportHardest').textContent = '–';
+    document.getElementById('reportTableContainer').innerHTML =
+      '<p class="text-slate-600 text-sm text-center py-6">Hämtar rapport...</p>';
+
+    const res  = await api('/api/forecast-report');
+    const data = await res.json();
+    _reportData = data;
+
+    document.getElementById('reportAvgAccuracy').textContent  =
+      data.avg_accuracy !== null ? data.avg_accuracy + '%' : '–';
+    document.getElementById('reportProductCount').textContent = data.total_products_with_data;
+
+    if (data.products && data.products.length) {
+      document.getElementById('reportHardest').textContent = data.products[0].product;
+    }
+
+    renderReportTable(data.products || []);
+    populateReportSelect(data.products || []);
+    renderReportRecommendations(data.products || []);
+  } catch(err) {
+    document.getElementById('reportTableContainer').innerHTML =
+      `<p class="text-red-400 text-sm text-center py-6">Fel: ${escHtml(err.message)}</p>`;
+  }
+}
+
+function renderReportTable(products) {
+  const c = document.getElementById('reportTableContainer');
+  if (!products.length) {
+    c.innerHTML = '<p class="text-slate-600 text-sm text-center py-6">Ingen prognoslogg ännu. Öppna Prognos-fliken för dina produkter så börjar loggen fyllas på.</p>';
+    return;
+  }
+  c.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead><tr class="text-slate-500 text-xs uppercase tracking-wider text-left border-b border-slate-700">
+      <th class="pb-2 pr-4 font-semibold">Produkt</th>
+      <th class="pb-2 pr-4 font-semibold text-right">Medelavvikelse</th>
+      <th class="pb-2 pr-4 font-semibold text-right">Inom ±15%</th>
+      <th class="pb-2 pr-4 font-semibold text-right">Poäng</th>
+      <th class="pb-2 font-semibold text-right">Datapunkter</th>
+    </tr></thead>
+    <tbody class="divide-y divide-slate-700/40">
+    ${products.map(p=>{
+      const score = p.accuracy_score;
+      const scoreCls = score >= 80 ? 'text-emerald-400' : score >= 60 ? 'text-amber-400' : 'text-red-400';
+      const bar = Math.round(score);
+      return `<tr class="hover:bg-slate-700/10">
+        <td class="py-2.5 pr-4 font-medium text-white">${escHtml(p.product)}</td>
+        <td class="py-2.5 pr-4 text-right text-slate-300">${p.mape}%</td>
+        <td class="py-2.5 pr-4 text-right text-slate-300">${p.within_15pct}%</td>
+        <td class="py-2.5 pr-4 text-right">
+          <span class="font-semibold ${scoreCls}">${score}%</span>
+          <div class="mt-1 h-1 bg-slate-700 w-20 ml-auto"><div class="h-1 ${score>=80?'bg-emerald-500':score>=60?'bg-amber-500':'bg-red-500'}" style="width:${bar}%"></div></div>
+        </td>
+        <td class="py-2.5 text-right text-slate-500 text-xs">${p.n}</td>
+      </tr>`;
+    }).join('')}
+    </tbody></table></div>`;
+}
+
+function populateReportSelect(products) {
+  const sel = document.getElementById('reportProductSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">– Välj produkt –</option>' +
+    products.map(p=>`<option value="${escHtml(p.product)}">${escHtml(p.product)}</option>`).join('');
+}
+
+function renderReportChart() {
+  const sel     = document.getElementById('reportProductSelect');
+  const name    = sel?.value;
+  const ph      = document.getElementById('reportChartPlaceholder');
+  const wrap    = document.getElementById('reportChartWrap');
+  if (!name || !_reportData) { ph.classList.remove('hidden'); wrap.classList.add('hidden'); return; }
+
+  const prod = _reportData.products.find(p=>p.product===name);
+  if (!prod || !prod.chart_data.length) {
+    ph.textContent = 'Ingen data för denna produkt ännu.';
+    ph.classList.remove('hidden'); wrap.classList.add('hidden'); return;
+  }
+  ph.classList.add('hidden'); wrap.classList.remove('hidden');
+
+  if (_reportChartInst) _reportChartInst.destroy();
+  const labels = prod.chart_data.map(r=>r.date);
+  _reportChartInst = new Chart(document.getElementById('reportChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'Faktisk', data: prod.chart_data.map(r=>r.actual),
+          borderColor:'rgba(52,211,153,0.9)', backgroundColor:'rgba(52,211,153,0.1)',
+          borderWidth:2, pointRadius:3, tension:0.3 },
+        { label:'Prognos', data: prod.chart_data.map(r=>r.predicted),
+          borderColor:'rgba(251,146,60,0.9)', backgroundColor:'transparent',
+          borderWidth:2, borderDash:[5,3], pointRadius:2, tension:0.3 },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#94a3b8', font:{size:11} } } },
+      scales:{
+        x:{ ticks:{color:'#475569',font:{size:10},maxRotation:45,autoSkip:true,maxTicksLimit:12},
+            grid:{color:'rgba(71,85,105,0.15)'} },
+        y:{ ticks:{color:'#475569',font:{size:11}}, grid:{color:'rgba(71,85,105,0.15)'}, beginAtZero:true }
+      }
+    }
+  });
+}
+
+function renderReportRecommendations(products) {
+  const ul = document.getElementById('reportRecommendations');
+  if (!ul) return;
+  const recs = [];
+  if (!products.length) {
+    ul.innerHTML = '<li class="text-slate-500">Öppna Prognos-fliken för dina produkter för att börja samla prognosdata. Rekommendationer visas efter 7+ dagar med logg.</li>';
+    return;
+  }
+  const avg = products.reduce((s,p)=>s+p.accuracy_score,0)/products.length;
+  if (avg < 70) recs.push('Genomsnittlig noggrannhet under 70% — kontrollera att försäljningsdata är komplett och utan dubbletter.');
+  const bad = products.filter(p=>p.accuracy_score<60);
+  if (bad.length) recs.push(`${bad.map(p=>p.product).join(', ')} har låg träffsäkerhet (<60%). Använd händelsekalendern för att märka kampanjer och helgdagar.`);
+  const few = products.filter(p=>p.n<7);
+  if (few.length) recs.push(`${few.map(p=>p.product).join(', ')} har för lite historisk data (<7 datapunkter) för tillförlitlig jämförelse.`);
+  if (avg >= 85) recs.push('Utmärkt träffsäkerhet! Fortsätt att märka avvikelser i dashboarden för att bibehålla kvaliteten.');
+  if (!recs.length) recs.push('Prognoserna ser bra ut. Lägg till händelser i kalendern för att förbättra säsongsjusteringar ytterligare.');
+  ul.innerHTML = recs.map(r=>`<li class="flex gap-2 text-slate-400 text-sm"><span class="text-rose-500 flex-shrink-0 mt-0.5">›</span>${escHtml(r)}</li>`).join('');
 }
 </script>
 </body>

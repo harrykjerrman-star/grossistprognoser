@@ -133,6 +133,46 @@ def init_db() -> None:
             unmatched    INTEGER NOT NULL DEFAULT 0,
             message      TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS forecast_log (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id    INTEGER NOT NULL REFERENCES products(id),
+            forecast_date TEXT    NOT NULL,
+            target_date   TEXT    NOT NULL,
+            predicted     REAL    NOT NULL,
+            lower_bound   REAL,
+            upper_bound   REAL,
+            model         TEXT    NOT NULL DEFAULT 'prophet'
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_forecast_log_unique
+            ON forecast_log(product_id, forecast_date, target_date);
+
+        CREATE INDEX IF NOT EXISTS idx_forecast_log_product
+            ON forecast_log(product_id, target_date);
+
+        CREATE TABLE IF NOT EXISTS calendar_events (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            date       TEXT    NOT NULL,
+            name       TEXT    NOT NULL,
+            event_type TEXT    NOT NULL DEFAULT 'other',
+            multiplier REAL    NOT NULL DEFAULT 1.0,
+            note       TEXT    NOT NULL DEFAULT ''
+        );
+
+        CREATE TABLE IF NOT EXISTS anomalies (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id    INTEGER NOT NULL REFERENCES products(id),
+            date          TEXT    NOT NULL,
+            predicted     REAL    NOT NULL,
+            actual        REAL    NOT NULL,
+            deviation_pct REAL    NOT NULL,
+            reason        TEXT,
+            marked_at     TEXT
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_anomalies_unique
+            ON anomalies(product_id, date);
     """)
 
     # Safe migrations for older databases
