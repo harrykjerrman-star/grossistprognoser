@@ -9,6 +9,9 @@ from database import get_connection
 
 logging.getLogger("prophet").setLevel(logging.WARNING)
 logging.getLogger("cmdstanpy").setLevel(logging.WARNING)
+logging.getLogger("NP.forecaster").setLevel(logging.ERROR)
+logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
+logging.getLogger("lightning").setLevel(logging.ERROR)
 
 try:
     from prophet import Prophet
@@ -17,14 +20,21 @@ except ImportError:
     _PROPHET = False
 
 try:
+    from neuralprophet import NeuralProphet as _NeuralProphet
+    _NEURALPROPHET = True
+except ImportError:
+    _NEURALPROPHET = False
+
+try:
     from xgboost import XGBRegressor as _XGBRegressor
     _HAS_XGB = True
 except ImportError:
     _HAS_XGB = False
 
-SAFETY_MARGIN   = 0.10
+SAFETY_MARGIN    = 0.10
 MIN_PROPHET_ROWS = 10
-MIN_XGB_ROWS     = 30
+MIN_NP_ROWS      = 30
+MIN_XGB_ROWS     = 60
 
 
 # ---------------------------------------------------------------------------
@@ -87,9 +97,44 @@ def _swedish_holidays(years) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _holiday_set(years) -> set:
+    holidays_df = _swedish_holidays(years)
+    return set(pd.Timestamp(ts).date() for ts in holidays_df["ds"])
+
+
 # ---------------------------------------------------------------------------
 # Forecast backends
 # ---------------------------------------------------------------------------
+
+def _neuralprophet_forecast(df: pd.DataFrame, days: int) -> list[dict]:
+    n_lags = min(14, max(7, len(df) // 4))
+    model  = _NeuralProphet(
+        n_forecasts=1,
+        n_lags=n_lags,
+        yearly_seasonality=True,
+        weekly_seasonality=True,
+        daily_seasonality=False,
+        epochs=30,
+        learning_rate=0.1,
+        batch_size=32,
+    )
+    model.fit(df, freq="D", progress=None)
+    future   = model.make_future_dataframe(df, periods=days, n_historic_predictions=False)
+    forecast = model.predict(future)
+    future_rows = forecast.tail(days)
+
+    std_val = float(df["y"].std()) if len(df) > 1 else float(df["y"].mean()) * 0.15
+    results: list[dict] = []
+    for _, row in future_rows.iterrows():
+        pred = max(0.0, float(row.get("yhat1", 0) or 0))
+        results.append({
+            "date":      row["ds"].strftime("%Y-%m-%d"),
+            "predicted": round(pred, 1),
+            "lower":     round(max(0.0, pred - std_val), 1),
+            "upper":     round(pred + std_val, 1),
+        })
+    return results
+
 
 def _prophet_forecast(df: pd.DataFrame, days: int) -> list[dict]:
     years    = range(df["ds"].dt.year.min() - 1, datetime.now().year + 3)
@@ -117,29 +162,25 @@ def _prophet_forecast(df: pd.DataFrame, days: int) -> list[dict]:
 
 
 def _xgboost_forecast(df: pd.DataFrame, days: int) -> list[dict]:
-    """XGBoost recursive forecast using lag/calendar features."""
     if not _HAS_XGB:
         return _simple_forecast(df, days)
     try:
+        all_years = range(df["ds"].dt.year.min(), datetime.now().year + 2)
+        holidays  = _holiday_set(all_years)
+
         df2 = df.copy()
-        df2["dow"]   = df2["ds"].dt.dayofweek
-        df2["month"] = df2["ds"].dt.month
-        df2["woy"]   = df2["ds"].dt.isocalendar().week.astype(int)
-        df2["doy"]   = df2["ds"].dt.dayofyear
-        for lag in [1, 2, 3, 7, 14]:
-            df2[f"lag_{lag}"] = df2["y"].shift(lag)
-        df2["roll7"]  = df2["y"].rolling(7,  min_periods=1).mean()
-        df2["roll14"] = df2["y"].rolling(14, min_periods=1).mean()
+        df2["dow"]        = df2["ds"].dt.dayofweek
+        df2["month"]      = df2["ds"].dt.month
+        df2["dom"]        = df2["ds"].dt.day
+        df2["is_holiday"] = df2["ds"].apply(lambda ts: int(ts.date() in holidays))
+        df2["roll7"]      = df2["y"].rolling(7, min_periods=1).mean()
+        df2["lag_7"]      = df2["y"].shift(7)
 
         train = df2.dropna()
         if len(train) < 15:
             return _simple_forecast(df, days)
 
-        feat_cols = [c for c in
-                     ["dow", "month", "woy", "doy",
-                      "lag_1", "lag_2", "lag_3", "lag_7", "lag_14",
-                      "roll7", "roll14"]
-                     if c in train.columns]
+        feat_cols = ["dow", "month", "dom", "is_holiday", "roll7", "lag_7"]
 
         model = _XGBRegressor(
             n_estimators=150, max_depth=4, learning_rate=0.08,
@@ -160,15 +201,14 @@ def _xgboost_forecast(df: pd.DataFrame, days: int) -> list[dict]:
                 idx = len(history) - n
                 return history[idx] if idx >= 0 else float(np.mean(history[-7:]))
 
-            row_dict = {
-                "dow":    fd.dayofweek,
-                "month":  fd.month,
-                "woy":    int(fd.isocalendar()[1]),
-                "doy":    fd.timetuple().tm_yday,
-                "lag_1":  _lag(1), "lag_2": _lag(2), "lag_3": _lag(3),
-                "lag_7":  _lag(7), "lag_14": _lag(14),
-                "roll7":  float(np.mean(history[-7:]))  if len(history) >= 7  else float(np.mean(history)),
-                "roll14": float(np.mean(history[-14:])) if len(history) >= 14 else float(np.mean(history)),
+            roll7_val = float(np.mean(history[-7:])) if len(history) >= 7 else float(np.mean(history))
+            row_dict  = {
+                "dow":        fd.dayofweek,
+                "month":      fd.month,
+                "dom":        fd.day,
+                "is_holiday": int(fd.date() in holidays),
+                "roll7":      roll7_val,
+                "lag_7":      _lag(7),
             }
             feat = np.array([[row_dict[c] for c in feat_cols]])
             pred = float(max(0.0, model.predict(feat)[0]))
@@ -187,7 +227,6 @@ def _xgboost_forecast(df: pd.DataFrame, days: int) -> list[dict]:
 
 
 def _simple_forecast(df: pd.DataFrame, days: int) -> list[dict]:
-    """Exponentially weighted moving average with weekday seasonality."""
     values  = df["y"].values
     weights = np.exp(np.linspace(0, 1, len(values)))
     base    = float(np.average(values, weights=weights))
@@ -246,7 +285,31 @@ def get_forecast(product_name: str, days: int = 7) -> dict | None:
     method = "fallback"
     points: list[dict] = []
 
-    if _PROPHET and len(df) >= MIN_PROPHET_ROWS:
+    # 1. Try NeuralProphet (+ optional XGBoost combination at 60 days)
+    if _NEURALPROPHET and len(df) >= MIN_NP_ROWS:
+        try:
+            np_pts = _neuralprophet_forecast(df, days)
+            if _HAS_XGB and len(df) >= MIN_XGB_ROWS:
+                xgb_pts = _xgboost_forecast(df, days)
+                combined = []
+                for np_p, xp in zip(np_pts, xgb_pts):
+                    pred = round(max(0.0, 0.6 * np_p["predicted"] + 0.4 * xp["predicted"]), 1)
+                    combined.append({
+                        "date":      np_p["date"],
+                        "predicted": pred,
+                        "lower":     round(min(np_p["lower"],  xp["lower"]),  1),
+                        "upper":     round(max(np_p["upper"],  xp["upper"]),  1),
+                    })
+                points = combined
+                method = "combined_np"
+            else:
+                points = np_pts
+                method = "neuralprophet"
+        except Exception:
+            pass  # fall through to Prophet
+
+    # 2. Fall back to Prophet (+ XGBoost at 30 days)
+    if not points and _PROPHET and len(df) >= MIN_PROPHET_ROWS:
         try:
             prophet_pts = _prophet_forecast(df, days)
             if _HAS_XGB and len(df) >= MIN_XGB_ROWS:
@@ -266,10 +329,12 @@ def get_forecast(product_name: str, days: int = 7) -> dict | None:
                 points = prophet_pts
                 method = "prophet"
         except Exception:
-            points = _simple_forecast(df, days)
-            method = "fallback"
-    else:
+            pass
+
+    # 3. EWMA fallback
+    if not points:
         points = _simple_forecast(df, days)
+        method = "fallback"
 
     # ── Apply calendar event multipliers ─────────────────────────────────────
     today_iso = date.today().isoformat()
@@ -290,7 +355,7 @@ def get_forecast(product_name: str, days: int = 7) -> dict | None:
         city_row = cur.execute("SELECT value FROM settings WHERE key='weather_city'").fetchone()
         if city_row and city_row["value"]:
             from weather import get_weather_for_city, weather_multipliers
-            wdata = get_weather_for_city(city_row["value"])
+            wdata  = get_weather_for_city(city_row["value"])
             wmults = weather_multipliers(wdata)
             for pt in points:
                 if pt["date"] in wmults:
@@ -304,8 +369,8 @@ def get_forecast(product_name: str, days: int = 7) -> dict | None:
 
     conn.close()
 
-    daily_avg  = float(df["y"].mean())
-    days_stock = (current_stock / daily_avg) if (daily_avg > 0 and stock_init) else None
+    daily_avg      = float(df["y"].mean())
+    days_stock     = (current_stock / daily_avg) if (daily_avg > 0 and stock_init) else None
     total_forecast = sum(p["predicted"] for p in points)
 
     if stock_init:

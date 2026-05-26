@@ -173,6 +173,14 @@ def init_db() -> None:
 
         CREATE UNIQUE INDEX IF NOT EXISTS idx_anomalies_unique
             ON anomalies(product_id, date);
+
+        CREATE TABLE IF NOT EXISTS ai_chat_log (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            question   TEXT NOT NULL,
+            answer     TEXT NOT NULL,
+            context    TEXT,
+            created_at TEXT NOT NULL
+        );
     """)
 
     # Safe migrations for older databases

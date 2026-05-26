@@ -29,6 +29,12 @@ except ImportError:
     _pdfplumber = None
     HAS_PDFPLUMBER = False
 
+try:
+    import anthropic as _anthropic
+    HAS_ANTHROPIC = True
+except ImportError:
+    HAS_ANTHROPIC = False
+
 from database import get_connection, init_db
 from forecast import generate_demo_data, get_forecast
 
@@ -287,6 +293,65 @@ def _parse_delivery_items(raw_text: str, tables: list[list], known_products: lis
             _add(line, name_guess, qty_val, unit)
 
     return results
+
+
+def _parse_delivery_with_claude(raw_text: str, tables: list[list], known_products: list[dict]) -> list[dict] | None:
+    """Use Claude claude-opus-4-7 to parse delivery note text into structured items."""
+    if not HAS_ANTHROPIC:
+        return None
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+
+    prod_names   = [p["name"] for p in known_products][:80]
+    products_str = "\n".join(f"- {n}" for n in prod_names)
+
+    tables_text = ""
+    for i, tbl in enumerate(tables[:2]):
+        tables_text += f"\nTabell {i+1}:\n"
+        for row in tbl[:15]:
+            tables_text += " | ".join(str(c or "") for c in row) + "\n"
+
+    prompt = (
+        "Du är ett system som tolkar svenska följesedlar. "
+        "Extrahera levererade produkter med kvantiteter.\n\n"
+        f"Kända produkter i systemet:\n{products_str}\n\n"
+        f"Följesedeltext:\n{raw_text[:3000]}"
+        + (f"\n{tables_text[:800]}" if tables_text else "")
+        + "\n\nReturnera ENDAST ett JSON-array (ingen annan text), "
+        "varje objekt med fälten: parsed_name (str), matched_product (str|null), "
+        "quantity (float), unit (st/kg/liter/dl/g/cl/förp/fp/krt), "
+        "confidence (high|low). "
+        "Inkludera bara rader med produkter och positiva kvantiteter."
+    )
+
+    try:
+        client = _anthropic.Anthropic(api_key=api_key)
+        msg    = client.messages.create(
+            model="claude-opus-4-7",
+            max_tokens=2048,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text  = (msg.content[0].text or "").strip()
+        start = text.find("[")
+        end   = text.rfind("]") + 1
+        if start == -1 or end == 0:
+            return None
+        items = json.loads(text[start:end])
+        return [
+            {
+                "raw_text":        item.get("parsed_name", ""),
+                "parsed_name":     item.get("parsed_name", ""),
+                "matched_product": item.get("matched_product"),
+                "quantity":        float(item.get("quantity", 0)),
+                "unit":            item.get("unit", "st"),
+                "confidence":      item.get("confidence", "low"),
+            }
+            for item in items
+            if isinstance(item, dict) and float(item.get("quantity", 0)) > 0
+        ]
+    except Exception:
+        return None
 
 
 def _expiry_info(product_id: int, conn) -> dict:
@@ -2031,13 +2096,18 @@ def upload_delivery_note():
         return jsonify({"error": "Ingen text kunde extraheras ur filen. "
                                   "Prova en annan fil eller ett digitalt skannat PDF-dokument."}), 400
 
-    conn    = get_connection()
+    conn     = get_connection()
     products = [dict(r) for r in conn.execute(
         "SELECT id, name FROM products ORDER BY name"
     ).fetchall()]
     conn.close()
 
-    items = _parse_delivery_items(raw_text, tables, products)
+    # Try Claude first for better parsing accuracy
+    items  = _parse_delivery_with_claude(raw_text, tables, products)
+    method = "claude"
+    if items is None:
+        items  = _parse_delivery_items(raw_text, tables, products)
+        method = "regex"
 
     return jsonify({
         "items":      items,
@@ -2046,7 +2116,92 @@ def upload_delivery_note():
         "unmatched":  sum(1 for i in items if not i["matched_product"]),
         "has_text":   bool(raw_text.strip()),
         "has_tables": bool(tables),
+        "parse_method": method,
     })
+
+
+@app.post("/api/ai-chat")
+@require_auth
+def ai_chat():
+    body     = request.get_json(silent=True) or {}
+    question = str(body.get("question", "")).strip()[:1000]
+    if not question:
+        return jsonify({"error": "Fråga krävs"}), 400
+
+    if not HAS_ANTHROPIC:
+        return jsonify({"error": "Claude API ej tillgänglig (installera anthropic-paketet)"}), 503
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return jsonify({"error": "ANTHROPIC_API_KEY ej konfigurerad i miljövariabler"}), 503
+
+    conn        = get_connection()
+    thirty_ago  = (date.today() - timedelta(days=30)).isoformat()
+
+    top_sales = conn.execute("""
+        SELECT p.name, ROUND(SUM(s.quantity),0) AS total
+        FROM sales s JOIN products p ON s.product_id=p.id
+        WHERE s.date >= ? AND s.quantity > 0
+        GROUP BY p.id ORDER BY total DESC LIMIT 10
+    """, (thirty_ago,)).fetchall()
+
+    low_stock = conn.execute("""
+        SELECT name, current_stock, unit FROM products
+        WHERE stock_initialized=1 AND current_stock < 10
+        ORDER BY current_stock LIMIT 10
+    """).fetchall()
+
+    anomalies = conn.execute("""
+        SELECT p.name, a.date, a.deviation_pct
+        FROM anomalies a JOIN products p ON a.product_id=p.id
+        ORDER BY a.date DESC LIMIT 5
+    """).fetchall()
+
+    context_parts = []
+    if top_sales:
+        lines = "\n".join(f"- {r['name']}: {int(r['total'])} sålda" for r in top_sales)
+        context_parts.append(f"Toppsäljare senaste 30 dagarna:\n{lines}")
+    if low_stock:
+        lines = "\n".join(f"- {r['name']}: {r['current_stock']} {r['unit']}" for r in low_stock)
+        context_parts.append(f"Lågt lager:\n{lines}")
+    if anomalies:
+        lines = "\n".join(f"- {r['name']} ({r['date']}): {r['deviation_pct']:+.0f}% avvikelse" for r in anomalies)
+        context_parts.append(f"Senaste avvikelser:\n{lines}")
+    context_str = "\n\n".join(context_parts) or "Ingen försäljningsdata tillgänglig ännu."
+    conn.close()
+
+    system_prompt = (
+        "Du är en AI-assistent för ett restaurang/grossistsystem. Svara alltid på svenska. "
+        "Ge kortfattade, praktiska råd baserade på datan nedan. "
+        "Om du inte har tillräcklig data, säg det tydligt.\n\n"
+        f"Aktuell data:\n{context_str}"
+    )
+
+    try:
+        client = _anthropic.Anthropic(api_key=api_key)
+        msg    = client.messages.create(
+            model="claude-opus-4-7",
+            max_tokens=800,
+            system=system_prompt,
+            messages=[{"role": "user", "content": question}],
+        )
+        answer = (msg.content[0].text or "").strip()
+
+        conn = get_connection()
+        conn.execute(
+            "INSERT INTO ai_chat_log (question, answer, context, created_at) VALUES (?,?,?,?)",
+            (question, answer, context_str[:500], datetime.now().isoformat()),
+        )
+        conn.execute("""
+            DELETE FROM ai_chat_log WHERE id NOT IN (
+                SELECT id FROM ai_chat_log ORDER BY created_at DESC LIMIT 10
+            )
+        """)
+        conn.commit()
+        conn.close()
+
+        return jsonify({"answer": answer, "question": question})
+    except Exception as exc:
+        return jsonify({"error": f"Claude API-fel: {exc}"}), 500
 
 
 @app.post("/api/delivery-note/apply")
