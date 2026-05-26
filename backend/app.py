@@ -35,6 +35,12 @@ try:
 except ImportError:
     HAS_ANTHROPIC = False
 
+try:
+    import google.generativeai as _genai
+    HAS_GEMINI = True
+except ImportError:
+    HAS_GEMINI = False
+
 from database import get_connection, init_db
 from forecast import generate_demo_data, get_forecast
 
@@ -136,6 +142,66 @@ def _decrypt_val(encrypted: str) -> str:
         return bytes(a ^ b for a, b in zip(data, key_bytes)).decode("utf-8")
     except Exception:
         return ""
+
+
+# ─────────────────────────────────────────
+# AI helpers (Claude → Gemini fallback)
+# ─────────────────────────────────────────
+
+def _call_claude(system_prompt: str, user_msg: str, max_tokens: int = 800) -> str | None:
+    """Try Claude (claude-opus-4-7); return None on failure or if not configured."""
+    if not HAS_ANTHROPIC:
+        return None
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+    try:
+        client = _anthropic.Anthropic(api_key=api_key)
+        msg    = client.messages.create(
+            model="claude-opus-4-7",
+            max_tokens=max_tokens,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_msg}],
+        )
+        return (msg.content[0].text or "").strip()
+    except Exception:
+        return None
+
+
+def _call_gemini(system_prompt: str, user_msg: str, max_tokens: int = 800) -> str | None:
+    """Try Gemini 1.5 Flash (free tier 1500 req/day); return None on failure."""
+    if not HAS_GEMINI:
+        return None
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return None
+    try:
+        _genai.configure(api_key=api_key)
+        model = _genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            system_instruction=system_prompt,
+            generation_config={"max_output_tokens": max_tokens, "temperature": 0.5},
+        )
+        response = model.generate_content(user_msg)
+        return (response.text or "").strip()
+    except Exception:
+        return None
+
+
+def _call_ai(system_prompt: str, user_msg: str, max_tokens: int = 800) -> tuple[str | None, str | None]:
+    """Try Claude, then Gemini. Returns (answer, model_used) or (None, None)."""
+    ans = _call_claude(system_prompt, user_msg, max_tokens)
+    if ans:
+        return ans, "claude-opus-4-7"
+    ans = _call_gemini(system_prompt, user_msg, max_tokens)
+    if ans:
+        return ans, "gemini-1.5-flash"
+    return None, None
+
+
+def _ai_available() -> bool:
+    return (HAS_ANTHROPIC and bool(os.environ.get("ANTHROPIC_API_KEY"))) or \
+           (HAS_GEMINI    and bool(os.environ.get("GEMINI_API_KEY")))
 
 
 # ─────────────────────────────────────────
@@ -335,12 +401,12 @@ def _parse_delivery_items(raw_text: str, tables: list[list], known_products: lis
     return results
 
 
-def _parse_delivery_with_claude(raw_text: str, tables: list[list], known_products: list[dict]) -> list[dict] | None:
-    """Use Claude claude-opus-4-7 to parse delivery note text into structured items."""
-    if not HAS_ANTHROPIC:
-        return None
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
+def _parse_delivery_with_ai(raw_text: str, tables: list[list], known_products: list[dict]) -> list[dict] | None:
+    """
+    Use Claude or Gemini (free fallback) to parse delivery note text into structured items.
+    Returns None if no AI service is configured.
+    """
+    if not _ai_available():
         return None
 
     prod_names   = [p["name"] for p in known_products][:80]
@@ -352,27 +418,25 @@ def _parse_delivery_with_claude(raw_text: str, tables: list[list], known_product
         for row in tbl[:15]:
             tables_text += " | ".join(str(c or "") for c in row) + "\n"
 
-    prompt = (
-        "Du är ett system som tolkar svenska följesedlar. "
-        "Extrahera levererade produkter med kvantiteter.\n\n"
+    system_prompt = (
+        "Du är ett system som tolkar svenska följesedlar (delivery notes). "
+        "Du svarar ENDAST med ett giltigt JSON-array — ingen annan text, inga kodblock."
+    )
+    user_prompt = (
         f"Kända produkter i systemet:\n{products_str}\n\n"
         f"Följesedeltext:\n{raw_text[:3000]}"
         + (f"\n{tables_text[:800]}" if tables_text else "")
-        + "\n\nReturnera ENDAST ett JSON-array (ingen annan text), "
-        "varje objekt med fälten: parsed_name (str), matched_product (str|null), "
-        "quantity (float), unit (st/kg/liter/dl/g/cl/förp/fp/krt), "
-        "confidence (high|low). "
+        + "\n\nReturnera ett JSON-array där varje objekt har fälten: "
+        "parsed_name (str), matched_product (str eller null), "
+        "quantity (float), unit (en av: st/kg/liter/dl/g/cl/förp/fp/krt), "
+        "confidence (\"high\" eller \"low\"). "
         "Inkludera bara rader med produkter och positiva kvantiteter."
     )
 
+    text, _ = _call_ai(system_prompt, user_prompt, max_tokens=2048)
+    if not text:
+        return None
     try:
-        client = _anthropic.Anthropic(api_key=api_key)
-        msg    = client.messages.create(
-            model="claude-opus-4-7",
-            max_tokens=2048,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        text  = (msg.content[0].text or "").strip()
         start = text.find("[")
         end   = text.rfind("]") + 1
         if start == -1 or end == 0:
@@ -392,6 +456,10 @@ def _parse_delivery_with_claude(raw_text: str, tables: list[list], known_product
         ]
     except Exception:
         return None
+
+
+# Backward-compat alias
+_parse_delivery_with_claude = _parse_delivery_with_ai
 
 
 def _expiry_info(product_id: int, conn) -> dict:
@@ -2289,9 +2357,9 @@ def upload_delivery_note():
     ).fetchall()]
     conn.close()
 
-    # Try Claude first for better parsing accuracy
-    items  = _parse_delivery_with_claude(raw_text, tables, products)
-    method = "claude"
+    # Try AI (Claude → Gemini fallback) for better parsing accuracy
+    items  = _parse_delivery_with_ai(raw_text, tables, products)
+    method = "ai"
     if items is None:
         items  = _parse_delivery_items(raw_text, tables, products)
         method = "regex"
@@ -2315,11 +2383,11 @@ def ai_chat():
     if not question:
         return jsonify({"error": "Fråga krävs"}), 400
 
-    if not HAS_ANTHROPIC:
-        return jsonify({"error": "Claude API ej tillgänglig (installera anthropic-paketet)"}), 503
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        return jsonify({"error": "ANTHROPIC_API_KEY ej konfigurerad i miljövariabler"}), 503
+    if not _ai_available():
+        return jsonify({
+            "error": "Ingen AI-tjänst konfigurerad. Sätt GEMINI_API_KEY (gratis: aistudio.google.com) "
+                     "eller ANTHROPIC_API_KEY i Railway-projektets miljövariabler."
+        }), 503
 
     conn        = get_connection()
     thirty_ago  = (date.today() - timedelta(days=30)).isoformat()
@@ -2363,16 +2431,11 @@ def ai_chat():
         f"Aktuell data:\n{context_str}"
     )
 
-    try:
-        client = _anthropic.Anthropic(api_key=api_key)
-        msg    = client.messages.create(
-            model="claude-opus-4-7",
-            max_tokens=800,
-            system=system_prompt,
-            messages=[{"role": "user", "content": question}],
-        )
-        answer = (msg.content[0].text or "").strip()
+    answer, model_used = _call_ai(system_prompt, question, max_tokens=800)
+    if not answer:
+        return jsonify({"error": "AI-tjänsten svarade inte — kontrollera API-nyckeln."}), 502
 
+    try:
         conn = get_connection()
         conn.execute(
             "INSERT INTO ai_chat_log (question, answer, context, created_at) VALUES (?,?,?,?)",
@@ -2385,10 +2448,10 @@ def ai_chat():
         """)
         conn.commit()
         conn.close()
+    except Exception:
+        pass
 
-        return jsonify({"answer": answer, "question": question})
-    except Exception as exc:
-        return jsonify({"error": f"Claude API-fel: {exc}"}), 500
+    return jsonify({"answer": answer, "question": question, "model": model_used})
 
 
 @app.post("/api/delivery-note/apply")
