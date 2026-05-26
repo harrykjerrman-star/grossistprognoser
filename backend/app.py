@@ -746,7 +746,7 @@ def preview_file():
 
 @app.post("/api/login")
 def login():
-    body     = request.get_json(silent=True) or {}
+    body     = request.get_json(force=True, silent=True) or {}
     email    = body.get("email", "").strip()
     password = body.get("password", "")
     if not email or not password:
@@ -788,7 +788,7 @@ def get_weather_settings():
 @app.put("/api/settings/weather")
 @require_auth
 def set_weather_settings():
-    body = request.get_json(silent=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     city = str(body.get("city", "")).strip()[:100]
     conn = get_connection()
     conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('weather_city', ?)", (city,))
@@ -829,7 +829,7 @@ def get_events():
 @app.post("/api/events")
 @require_auth
 def create_event():
-    body       = request.get_json(silent=True) or {}
+    body       = request.get_json(force=True, silent=True) or {}
     date_str   = str(body.get("date",       "")).strip()
     name       = str(body.get("name",       "")).strip()
     event_type = str(body.get("event_type", "other")).strip()
@@ -853,7 +853,7 @@ def create_event():
 @app.put("/api/events/<int:event_id>")
 @require_auth
 def update_event(event_id):
-    body       = request.get_json(silent=True) or {}
+    body       = request.get_json(force=True, silent=True) or {}
     date_str   = str(body.get("date",       "")).strip()
     name       = str(body.get("name",       "")).strip()
     event_type = str(body.get("event_type", "other")).strip()
@@ -903,7 +903,7 @@ def get_anomalies():
 @app.put("/api/anomalies/<int:anomaly_id>/reason")
 @require_auth
 def mark_anomaly_reason(anomaly_id):
-    body   = request.get_json(silent=True) or {}
+    body   = request.get_json(force=True, silent=True) or {}
     reason = str(body.get("reason", "")).strip()[:200]
     now    = datetime.now().isoformat()
     conn   = get_connection()
@@ -1005,7 +1005,7 @@ def get_zettle_settings():
 @app.put("/api/settings/zettle")
 @require_auth
 def save_zettle_settings():
-    body      = request.get_json(silent=True) or {}
+    body      = request.get_json(force=True, silent=True) or {}
     client_id = body.get("client_id", "").strip()
     api_key   = body.get("api_key", "").strip()
     if not client_id or not api_key:
@@ -1065,7 +1065,7 @@ def get_zettle_products():
 @app.post("/api/zettle/mapping")
 @require_auth
 def save_zettle_mapping():
-    body       = request.get_json(silent=True) or {}
+    body       = request.get_json(force=True, silent=True) or {}
     mapping_id = body.get("mapping_id")
     product_id = body.get("product_id")   # None → unmap
     if not mapping_id:
@@ -1106,7 +1106,7 @@ def get_suppliers():
 @app.post("/api/suppliers")
 @require_auth
 def create_supplier():
-    body = request.get_json(silent=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     name = body.get("name", "").strip()
     if not name:
         return jsonify({"error": "Namn krävs"}), 400
@@ -1129,7 +1129,7 @@ def create_supplier():
 @app.put("/api/suppliers/<int:supplier_id>")
 @require_auth
 def update_supplier(supplier_id):
-    body = request.get_json(silent=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     conn = get_connection()
     conn.execute(
         "UPDATE suppliers SET name=?,contact_person=?,email=?,phone=?,lead_time_days=?,min_order_qty=? WHERE id=?",
@@ -1153,7 +1153,7 @@ def delete_supplier(supplier_id):
 @app.put("/api/products/<product_name>/supplier")
 @require_auth
 def set_product_supplier(product_name):
-    body        = request.get_json(silent=True) or {}
+    body        = request.get_json(force=True, silent=True) or {}
     supplier_id = body.get("supplier_id")
     conn        = get_connection()
     conn.execute("UPDATE products SET supplier_id=? WHERE name=?", (supplier_id, product_name))
@@ -1164,7 +1164,7 @@ def set_product_supplier(product_name):
 @app.put("/api/products/<product_name>/price")
 @require_auth
 def set_product_price(product_name):
-    body = request.get_json(silent=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     try:
         price = float(body.get("price", 0))
     except (ValueError, TypeError):
@@ -1178,7 +1178,7 @@ def set_product_price(product_name):
 @app.post("/api/products")
 @require_auth
 def create_product():
-    body  = request.get_json(silent=True) or {}
+    body  = request.get_json(force=True, silent=True) or {}
     name  = str(body.get("name", "")).strip()
     unit  = str(body.get("unit", "st")).strip() or "st"
     try:
@@ -1317,7 +1317,7 @@ def get_recipes():
 @app.post("/api/recipes")
 @require_auth
 def create_recipe():
-    body = request.get_json(silent=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     name = body.get("name", "").strip()
     if not name:
         return jsonify({"error": "Namn krävs"}), 400
@@ -1339,7 +1339,7 @@ def create_recipe():
 @app.put("/api/recipes/<int:recipe_id>")
 @require_auth
 def update_recipe(recipe_id):
-    body = request.get_json(silent=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     conn = get_connection()
     try:
         conn.execute("UPDATE recipes SET name=?, portions=? WHERE id=?",
@@ -1467,7 +1467,7 @@ def get_bookings():
 @app.post("/api/bookings")
 @require_auth
 def set_booking():
-    body   = request.get_json(silent=True) or {}
+    body   = request.get_json(force=True, silent=True) or {}
     bdate  = body.get("date", "")
     guests = int(body.get("guests", 0))
     if not bdate:
@@ -1488,7 +1488,7 @@ def set_booking():
 @app.post("/api/daily-menu/shopping-list")
 @require_auth
 def shopping_list():
-    body  = request.get_json(silent=True) or {}
+    body  = request.get_json(force=True, silent=True) or {}
     items = body.get("items", [])
     if not items:
         return jsonify({"error": "Inga rätter i menyn"}), 400
@@ -1528,7 +1528,7 @@ def shopping_list():
 def shopping_list_export():
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font, PatternFill
-    body      = request.get_json(silent=True) or {}
+    body      = request.get_json(force=True, silent=True) or {}
     items     = body.get("items", [])
     menu_date = body.get("date", date.today().isoformat())
     conn      = get_connection()
@@ -1783,7 +1783,7 @@ def recommendations():
 @app.put("/api/stock/<product_name>")
 @require_auth
 def update_stock(product_name):
-    body = request.get_json(silent=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     try: stock = float(body.get("stock", 0))
     except (ValueError, TypeError): return jsonify({"error": "Ogiltigt förrådsvärde"}), 400
     now_iso = datetime.now().isoformat(); today = date.today().isoformat()
@@ -1950,7 +1950,7 @@ def expiry_template():
 @app.post("/api/waste")
 @require_auth
 def add_waste():
-    body     = request.get_json(silent=True) or {}
+    body     = request.get_json(force=True, silent=True) or {}
     pname    = body.get("product","").strip()
     w_date   = body.get("date", date.today().isoformat())
     reason   = body.get("reason", "övrigt")
@@ -2145,7 +2145,7 @@ def get_outliers():
 @app.put("/api/outliers/<int:outlier_id>/review")
 @require_auth
 def review_outlier(outlier_id):
-    body   = request.get_json(silent=True) or {}
+    body   = request.get_json(force=True, silent=True) or {}
     action = str(body.get("action", "")).strip()   # "confirm" or "keep"
     if action not in ("confirm", "keep"):
         return jsonify({"error": "action måste vara 'confirm' eller 'keep'"}), 400
@@ -2163,7 +2163,7 @@ def review_outlier(outlier_id):
 @app.put("/api/outliers/review-bulk")
 @require_auth
 def review_outliers_bulk():
-    body   = request.get_json(silent=True) or {}
+    body   = request.get_json(force=True, silent=True) or {}
     ids    = body.get("ids", [])
     action = str(body.get("action", "")).strip()
     if action not in ("confirm", "keep"):
@@ -2310,7 +2310,7 @@ def upload_delivery_note():
 @app.post("/api/ai-chat")
 @require_auth
 def ai_chat():
-    body     = request.get_json(silent=True) or {}
+    body     = request.get_json(force=True, silent=True) or {}
     question = str(body.get("question", "")).strip()[:1000]
     if not question:
         return jsonify({"error": "Fråga krävs"}), 400

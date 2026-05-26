@@ -1618,8 +1618,14 @@ function _setText(id, text) {
 // API helper
 // ============================================================
 async function api(path, opts={}) {
-  const res=await fetch(`${API}${path}`,{...opts,headers:{Authorization:`Bearer ${token}`,...opts.headers}});
-  if(res.status===401){logout();throw new Error('Session upphörde');}
+  // Auto-set Content-Type so Flask's request.get_json() parses string bodies
+  const headers = { Authorization: `Bearer ${token}`, ...(opts.headers || {}) };
+  if (opts.body && typeof opts.body === 'string'
+      && !headers['Content-Type'] && !headers['content-type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+  const res = await fetch(`${API}${path}`, { ...opts, headers });
+  if (res.status === 401) { logout(); throw new Error('Session upphörde'); }
   return res;
 }
 
