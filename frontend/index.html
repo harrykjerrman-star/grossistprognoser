@@ -3487,13 +3487,22 @@ async function sendAiQuestion() {
     if (!res.ok) {
       history.innerHTML += `<div class="flex gap-2 items-start">
         <span class="text-rose-400 text-base leading-none mt-0.5">✦</span>
-        <div class="bg-red-900/30 border border-red-800/40 px-3 py-2 text-sm text-red-300 max-w-sm">${escHtml(data.error || 'Okänt fel')}</div>
+        <div class="bg-red-900/30 border border-red-800/40 px-3 py-2 text-sm text-red-300 max-w-sm rounded">${escHtml(data.error || 'Okänt fel')}</div>
       </div>`;
     } else {
-      const formatted = escHtml(data.answer).replace(/\n/g,'<br>');
+      // Minimal markdown: **bold** and newlines
+      let formatted = escHtml(data.answer)
+        .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white">$1</strong>')
+        .replace(/\n/g, '<br>');
+      const modelBadge = data.model
+        ? `<span class="text-[10px] uppercase tracking-wider text-slate-600 ml-1">${data.model === 'heuristic' ? 'Lokal assistent' : escHtml(data.model)}</span>`
+        : '';
       history.innerHTML += `<div class="flex gap-2 items-start">
         <span class="text-rose-400 text-base leading-none mt-0.5 flex-shrink-0">✦</span>
-        <div class="bg-slate-700/50 border border-slate-600/50 px-3 py-2 text-sm text-slate-200 max-w-sm leading-relaxed">${formatted}</div>
+        <div class="max-w-sm">
+          <div class="bg-slate-700/50 border border-slate-600/50 px-3 py-2 text-sm text-slate-200 leading-relaxed rounded">${formatted}</div>
+          ${modelBadge ? `<div class="mt-1">${modelBadge}</div>` : ''}
+        </div>
       </div>`;
     }
   } catch(err) {

@@ -205,6 +205,169 @@ def _ai_available() -> bool:
 
 
 # ─────────────────────────────────────────
+# Heuristic assistant (no API key required)
+# ─────────────────────────────────────────
+
+def _heuristic_answer(question: str) -> str:
+    """
+    Pattern-matched answers using live database data. No external API needed.
+    Covers the most common business questions; falls back to a summary overview.
+    """
+    q = question.lower().strip()
+    today      = date.today()
+    today_iso  = today.isoformat()
+    week_ago   = (today - timedelta(days=7)).isoformat()
+    month_ago  = (today - timedelta(days=30)).isoformat()
+
+    conn = get_connection()
+    try:
+        # Helper to format numbers
+        def fmt(n): return f"{n:.0f}" if isinstance(n, float) and n.is_integer() else f"{n}"
+
+        # ─── Inköp / låga produkter ────────────────────────────────────
+        if any(k in q for k in ["köp", "behöv", "beställ", "inköp", "ordert"]):
+            rows = conn.execute("""
+                SELECT p.name, p.current_stock, p.unit,
+                       COALESCE((SELECT SUM(s.quantity)/7.0 FROM sales s
+                                 WHERE s.product_id=p.id AND s.date >= ?),0) AS daily_avg
+                FROM products p WHERE p.stock_initialized=1
+                ORDER BY p.current_stock ASC LIMIT 15
+            """, (week_ago,)).fetchall()
+            urgent = [r for r in rows if r["daily_avg"] > 0 and r["current_stock"] / max(r["daily_avg"], 0.1) < 3]
+            soon   = [r for r in rows if r not in urgent and r["daily_avg"] > 0 and r["current_stock"] / max(r["daily_avg"], 0.1) < 7]
+            if not urgent and not soon:
+                return "Inga produkter har akut behov av påfyllning just nu. Allt lager ser stabilt ut."
+            parts = []
+            if urgent:
+                lines = [f"• **{r['name']}** — {fmt(r['current_stock'])} {r['unit']} kvar (~{r['current_stock']/max(r['daily_avg'],0.1):.0f} dagar)" for r in urgent[:5]]
+                parts.append("**Brådskande att köpa in:**\n" + "\n".join(lines))
+            if soon:
+                lines = [f"• {r['name']} — {fmt(r['current_stock'])} {r['unit']} ({r['current_stock']/max(r['daily_avg'],0.1):.0f} dagar)" for r in soon[:5]]
+                parts.append("**Snart slut:**\n" + "\n".join(lines))
+            parts.append("\nGå till **Inköpsrekommendationer** för full lista med beställningsförslag.")
+            return "\n\n".join(parts)
+
+        # ─── Toppsäljare ───────────────────────────────────────────────
+        if any(k in q for k in ["sälj", "popul", "topplist", "mest", "bäst", "favorit"]):
+            rows = conn.execute("""
+                SELECT p.name, ROUND(SUM(s.quantity)) AS total,
+                       ROUND(SUM(s.quantity)/30.0, 1) AS daily
+                FROM sales s JOIN products p ON s.product_id=p.id
+                WHERE s.date >= ? AND s.quantity > 0
+                GROUP BY p.id ORDER BY total DESC LIMIT 7
+            """, (month_ago,)).fetchall()
+            if not rows:
+                return "Ingen försäljningsdata de senaste 30 dagarna. Ladda upp data via Import-sektionen."
+            lines = [f"{i+1}. **{r['name']}** — {fmt(r['total'])} st (~{r['daily']}/dag)" for i, r in enumerate(rows)]
+            return "**Toppsäljare senaste 30 dagarna:**\n\n" + "\n".join(lines)
+
+        # ─── Avvikelser ────────────────────────────────────────────────
+        if any(k in q for k in ["avvik", "konstig", "oväntad", "annorlund", "extremvärd"]):
+            rows = conn.execute("""
+                SELECT p.name, a.date, a.deviation_pct, a.actual, a.predicted
+                FROM anomalies a JOIN products p ON a.product_id=p.id
+                ORDER BY a.date DESC LIMIT 7
+            """).fetchall()
+            if not rows:
+                return "Inga avvikelser har registrerats. Försäljningen följer förväntade mönster."
+            lines = [f"• **{r['name']}** ({r['date']}): {r['deviation_pct']:+.0f}% — såldes {fmt(r['actual'])} st (prognos: {fmt(r['predicted'])})" for r in rows]
+            return "**Senaste avvikelser:**\n\n" + "\n".join(lines) + "\n\nGå till **Datakvalitet** för att granska och markera engångshändelser."
+
+        # ─── Lågt lager ───────────────────────────────────────────────
+        if any(k in q for k in ["slut", "lågt", "lager", "förråd", "saldo"]):
+            rows = conn.execute("""
+                SELECT name, current_stock, unit FROM products
+                WHERE stock_initialized=1 AND current_stock < 20
+                ORDER BY current_stock ASC LIMIT 10
+            """).fetchall()
+            if not rows:
+                return "Lagret ser fullt och välsorterat ut. Inga produkter ligger under 20 enheter."
+            lines = [f"• **{r['name']}** — {fmt(r['current_stock'])} {r['unit']}" for r in rows]
+            return "**Produkter med lågt lager:**\n\n" + "\n".join(lines)
+
+        # ─── Försäljningstrend ────────────────────────────────────────
+        if any(k in q for k in ["trend", "utveckl", "förändring", "ökar", "minskar"]):
+            this_week = conn.execute(
+                "SELECT COALESCE(SUM(quantity),0) FROM sales WHERE date >= ? AND quantity > 0",
+                (week_ago,)
+            ).fetchone()[0]
+            two_w_ago = (today - timedelta(days=14)).isoformat()
+            prev_week = conn.execute(
+                "SELECT COALESCE(SUM(quantity),0) FROM sales WHERE date >= ? AND date < ? AND quantity > 0",
+                (two_w_ago, week_ago)
+            ).fetchone()[0]
+            if prev_week == 0:
+                return f"Senaste veckan: {fmt(this_week)} sålda enheter. För lite historik för att jämföra trend."
+            change = (this_week - prev_week) / prev_week * 100
+            arrow  = "📈" if change > 5 else ("📉" if change < -5 else "➡️")
+            return (f"**Försäljningstrend:**\n\n"
+                    f"• Den här veckan: **{fmt(this_week)}** enheter\n"
+                    f"• Förra veckan: {fmt(prev_week)} enheter\n"
+                    f"• Förändring: {arrow} **{change:+.1f}%**")
+
+        # ─── Utgångsdatum ────────────────────────────────────────────
+        if any(k in q for k in ["utgång", "datum", "färsk", "bäst före", "kasta"]):
+            in7 = (today + timedelta(days=7)).isoformat()
+            rows = conn.execute("""
+                SELECT p.name, e.expiry_date, e.quantity
+                FROM expiry_dates e JOIN products p ON e.product_id=p.id
+                WHERE e.expiry_date >= ? AND e.expiry_date <= ?
+                ORDER BY e.expiry_date LIMIT 10
+            """, (today_iso, in7)).fetchall()
+            if not rows:
+                return "Inga produkter går ut inom 7 dagar."
+            lines = [f"• **{r['name']}** — {fmt(r['quantity'])} st går ut {r['expiry_date']}" for r in rows]
+            return "**Produkter som går ut inom 7 dagar:**\n\n" + "\n".join(lines)
+
+        # ─── Svinn ───────────────────────────────────────────────────
+        if any(k in q for k in ["svinn", "kasserat", "skräp", "förlor"]):
+            rows = conn.execute("""
+                SELECT p.name, SUM(w.quantity) AS qty,
+                       ROUND(SUM(w.quantity * p.price), 2) AS cost
+                FROM waste w JOIN products p ON w.product_id=p.id
+                WHERE w.date >= ?
+                GROUP BY p.id ORDER BY cost DESC LIMIT 5
+            """, (month_ago,)).fetchall()
+            if not rows:
+                return "Inget svinn registrerat senaste 30 dagarna."
+            total_cost = sum(r["cost"] or 0 for r in rows)
+            lines = [f"• {r['name']}: {fmt(r['qty'])} st ({r['cost'] or 0:.0f} kr)" for r in rows]
+            return f"**Svinn senaste 30 dagarna — totalt {total_cost:.0f} kr:**\n\n" + "\n".join(lines)
+
+        # ─── Fallback: översiktssammanfattning ────────────────────────
+        total_products = conn.execute("SELECT COUNT(*) FROM products").fetchone()[0]
+        urgent_count = conn.execute("""
+            SELECT COUNT(*) FROM products p WHERE p.stock_initialized=1
+            AND p.current_stock < COALESCE((
+                SELECT SUM(s.quantity)/7.0*3 FROM sales s WHERE s.product_id=p.id AND s.date >= ?
+            ), 999999)
+        """, (week_ago,)).fetchone()[0]
+        week_sales = conn.execute(
+            "SELECT COALESCE(SUM(quantity),0) FROM sales WHERE date >= ? AND quantity > 0",
+            (week_ago,)
+        ).fetchone()[0]
+        anomaly_count = conn.execute("SELECT COUNT(*) FROM anomalies").fetchone()[0]
+
+        return (
+            "Jag svarar bäst på frågor om följande ämnen:\n\n"
+            "• **Inköp** — \"vad behöver jag köpa in?\"\n"
+            "• **Toppsäljare** — \"vad säljer bäst?\"\n"
+            "• **Avvikelser** — \"finns det några avvikelser?\"\n"
+            "• **Lager** — \"vilka produkter har lågt lager?\"\n"
+            "• **Trend** — \"hur går försäljningen?\"\n"
+            "• **Utgångsdatum** — \"vad går ut snart?\"\n"
+            "• **Svinn** — \"hur mycket har vi kasserat?\"\n\n"
+            f"**Snabb översikt just nu:**\n"
+            f"• {total_products} produkter i systemet\n"
+            f"• {urgent_count} brådskande att köpa in\n"
+            f"• {fmt(week_sales)} sålda enheter senaste veckan\n"
+            f"• {anomaly_count} avvikelser registrerade totalt"
+        )
+    finally:
+        conn.close()
+
+
+# ─────────────────────────────────────────
 # Column detection helpers
 # ─────────────────────────────────────────
 
@@ -2383,11 +2546,26 @@ def ai_chat():
     if not question:
         return jsonify({"error": "Fråga krävs"}), 400
 
+    # If no LLM API key is set, use the built-in heuristic assistant
+    # (no setup required — answers common questions from the database directly)
     if not _ai_available():
-        return jsonify({
-            "error": "Ingen AI-tjänst konfigurerad. Sätt GEMINI_API_KEY (gratis: aistudio.google.com) "
-                     "eller ANTHROPIC_API_KEY i Railway-projektets miljövariabler."
-        }), 503
+        answer = _heuristic_answer(question)
+        try:
+            conn = get_connection()
+            conn.execute(
+                "INSERT INTO ai_chat_log (question, answer, context, created_at) VALUES (?,?,?,?)",
+                (question, answer, "heuristic", datetime.now().isoformat()),
+            )
+            conn.execute("""
+                DELETE FROM ai_chat_log WHERE id NOT IN (
+                    SELECT id FROM ai_chat_log ORDER BY created_at DESC LIMIT 10
+                )
+            """)
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+        return jsonify({"answer": answer, "question": question, "model": "heuristic"})
 
     conn        = get_connection()
     thirty_ago  = (date.today() - timedelta(days=30)).isoformat()
