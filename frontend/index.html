@@ -123,16 +123,64 @@
     .data-table tbody tr { transition:background-color .12s; }
     .data-table tbody tr:hover { background:rgba(51,65,85,0.25); }
 
-    /* --- Mobile nav --- */
+    /* --- Sticky table headers --- */
+    .data-table thead th,
+    table thead.sticky-head th,
+    .sticky-head th {
+      position: sticky; top: 0; z-index: 5;
+      background: #1e293b;
+      border-bottom: 1px solid rgba(71,85,105,0.6);
+    }
+
+    /* --- Drag-and-drop visual --- */
+    .drop-zone { transition: all .15s ease; position: relative; }
+    .drop-zone.dragging {
+      background: rgba(190,18,60,0.08) !important;
+      border-color: rgba(190,18,60,0.6) !important;
+      transform: scale(1.01);
+    }
+    .drop-zone.dragging::after {
+      content: 'Släpp filen här';
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(190,18,60,0.15);
+      color: #fda4af; font-weight: 600; font-size: .85rem;
+      pointer-events: none; border: 2px dashed rgba(190,18,60,0.5);
+    }
+
+    /* --- Hamburger menu (mobile) --- */
+    .hamburger { display: none; }
     @media (max-width: 768px) {
-      .nav-btn { font-size:.68rem; padding:.5rem .65rem; }
-      .nav-btn svg { display:none; }
+      .desktop-nav { display: none !important; }
+      .hamburger { display: inline-flex; }
+      #mobileMenu.open { max-height: 70vh; }
+      #mobileMenu {
+        max-height: 0; overflow: hidden; transition: max-height .25s ease;
+        background: rgba(15,23,42,0.97); backdrop-filter: blur(8px);
+        border-bottom: 1px solid rgba(71,85,105,0.5);
+      }
+      #mobileMenu .nav-btn {
+        display: flex; width: 100%; padding: .8rem 1.5rem;
+        border-bottom: 1px solid rgba(51,65,85,0.4);
+        border-left: 3px solid transparent;
+      }
+      #mobileMenu .nav-btn.active {
+        border-bottom-color: transparent;
+        border-left-color: #be123c;
+        background: rgba(190,18,60,0.08);
+      }
+      #mobileMenu .nav-btn svg { display: inline; }
     }
 
     /* --- Compact spacing on small screens --- */
     @media (max-width: 640px) {
       .section { padding-left:1rem !important; padding-right:1rem !important; }
     }
+
+    /* --- Trend delta pill --- */
+    .delta-up   { color: #34d399; }
+    .delta-down { color: #f87171; }
+    .delta-flat { color: #64748b; }
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
@@ -310,6 +358,25 @@
   </div>
 </div>
 
+<!-- ===================== CONFIRM DIALOG ===================== -->
+<div id="confirmModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-slate-800 border border-slate-600 w-full max-w-md shadow-2xl rounded-lg overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-700 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full bg-amber-900/40 border border-amber-700/50 flex items-center justify-center text-amber-400 flex-shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      </div>
+      <h2 id="confirmTitle" class="text-sm font-semibold text-white uppercase tracking-wider">Bekräfta åtgärd</h2>
+    </div>
+    <div class="p-5">
+      <p id="confirmMessage" class="text-sm text-slate-300 leading-relaxed whitespace-pre-line"></p>
+    </div>
+    <div class="px-5 py-4 border-t border-slate-700 flex gap-3 justify-end bg-slate-800/60">
+      <button id="confirmCancelBtn" class="text-sm text-slate-300 hover:text-white px-4 py-2 border border-slate-600 hover:border-slate-500 rounded transition-colors">Avbryt</button>
+      <button id="confirmOkBtn" class="text-sm bg-rose-800 hover:bg-rose-700 text-white px-5 py-2 font-medium rounded transition-colors">Ja, fortsätt</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== AI CHAT MODAL ===================== -->
 <div id="aiChatModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-40 flex items-end sm:items-center justify-center p-4">
   <div class="bg-slate-800 border border-slate-600 w-full max-w-xl flex flex-col shadow-2xl" style="max-height:80vh">
@@ -408,8 +475,18 @@
     </div>
   </header>
 
+  <!-- Mobile hamburger toggle (only visible <768px) -->
+  <div class="hamburger bg-slate-800 border-b border-slate-700 px-4 py-2 items-center justify-between md:hidden">
+    <button onclick="toggleMobileMenu()" class="flex items-center gap-2 text-slate-300 hover:text-white px-2 py-1.5">
+      <svg id="hamburgerIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      <span id="mobileNavLabel" class="text-xs uppercase tracking-wider font-semibold">Meny</span>
+    </button>
+    <span class="text-xs text-slate-600" id="mobileSectionLabel">Dashboard</span>
+  </div>
+  <div id="mobileMenu" class="md:hidden"></div>
+
   <!-- Navigation -->
-  <nav class="bg-slate-800 border-b border-slate-700 px-6 flex-shrink-0">
+  <nav class="bg-slate-800 border-b border-slate-700 px-6 flex-shrink-0 desktop-nav">
     <div class="max-w-7xl mx-auto flex items-center overflow-x-auto">
       <button class="nav-btn active" id="nav-dash"      onclick="showSection('dash')">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
@@ -522,6 +599,7 @@
           </div>
           <p class="text-3xl font-bold text-emerald-400 mt-2" id="kpiSales">–</p>
           <p class="text-xs text-slate-600 mt-1" id="kpiSalesSub">enheter totalt</p>
+          <p class="" id="kpiSalesDelta"></p>
         </div>
       </div>
     </div>
@@ -596,7 +674,7 @@
     <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Importera data</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
 
-      <div class="bg-slate-800 p-5 border border-slate-700">
+      <div class="bg-slate-800 p-5 border border-slate-700 drop-zone" data-drop-input="fileInput" data-drop-type="sales">
         <h3 class="text-sm font-semibold text-white mb-1" id="importSalesTitle">Ingrediensförbrukning</h3>
         <p class="text-xs text-slate-500 mb-1">Accepterar valfritt Excel/CSV-format.</p>
         <p class="text-xs text-slate-600 mb-4" id="importSalesDesc">Behöver: ingrediens, datum, antal</p>
@@ -609,7 +687,7 @@
         </div>
       </div>
 
-      <div class="bg-slate-800 p-5 border border-slate-700" id="dishSalesCard">
+      <div class="bg-slate-800 p-5 border border-slate-700 drop-zone" id="dishSalesCard" data-drop-input="dishFileInput" data-drop-type="dish">
         <h3 class="text-sm font-semibold text-white mb-1">Rätt-försäljning</h3>
         <p class="text-xs text-slate-500 mb-1">Ladda upp portioner per rätt. Omvandlas automatiskt till ingrediensförbrukning.</p>
         <p class="text-xs text-slate-600 mb-4">Behöver: rätt, datum, portioner</p>
@@ -628,7 +706,7 @@
         <button id="demoBtn" onclick="generateDemo()" class="w-full bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 text-xs font-medium transition-colors">Generera demo-data</button>
       </div>
 
-      <div class="bg-slate-800 p-5 border border-slate-700">
+      <div class="bg-slate-800 p-5 border border-slate-700 drop-zone" data-drop-input="stockFileInput" data-drop-type="stock">
         <h3 class="text-sm font-semibold text-white mb-1">Förrådsaldo</h3>
         <p class="text-xs text-slate-500 mb-1">Accepterar valfritt Excel/CSV-format.</p>
         <p class="text-xs text-slate-600 mb-4">Behöver: ingrediens, saldo</p>
@@ -641,7 +719,7 @@
         </div>
       </div>
 
-      <div class="bg-slate-800 p-5 border border-slate-700">
+      <div class="bg-slate-800 p-5 border border-slate-700 drop-zone" data-drop-input="expiryFileInput" data-drop-type="expiry">
         <h3 class="text-sm font-semibold text-white mb-1">Utgångsdatum</h3>
         <p class="text-xs text-slate-500 mb-1">Accepterar valfritt Excel/CSV-format.</p>
         <p class="text-xs text-slate-600 mb-4">Behöver: ingrediens, utgångsdatum, antal · <button onclick="downloadExpiryTemplate()" class="text-rose-400 hover:underline">Ladda ner mall</button></p>
@@ -1317,6 +1395,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initDashboard() {
+  buildMobileMenu();
+  initDragAndDrop();
   loadProducts();
   loadDashboard();
   loadWeatherWidget();
@@ -1334,7 +1414,45 @@ function initDashboard() {
 // ============================================================
 // Section navigation
 // ============================================================
+// Mirror nav buttons into the mobile menu so we only maintain one source
+function buildMobileMenu() {
+  const src    = document.querySelector('.desktop-nav .max-w-7xl');
+  const target = document.getElementById('mobileMenu');
+  if (!src || !target || target.dataset.built) return;
+  target.innerHTML = '';
+  src.querySelectorAll('.nav-btn').forEach(btn => {
+    const clone = btn.cloneNode(true);
+    clone.id = clone.id.replace('nav-', 'mnav-');
+    // Re-bind: extract section from original onclick
+    const m = (btn.getAttribute('onclick') || '').match(/showSection\('([^']+)'\)/);
+    if (m) clone.setAttribute('onclick', `showSection('${m[1]}'); toggleMobileMenu(false);`);
+    target.appendChild(clone);
+  });
+  target.dataset.built = '1';
+}
+
+function toggleMobileMenu(forceOpen) {
+  buildMobileMenu();
+  const m = document.getElementById('mobileMenu');
+  if (typeof forceOpen === 'boolean') m.classList.toggle('open', forceOpen);
+  else m.classList.toggle('open');
+}
+
 function showSection(name) {
+  buildMobileMenu();
+  // Update mobile label
+  const labels = {
+    dash:'Dashboard', import:'Import', forecast:'Prognos', recs:'Inköpsrek.',
+    suppliers:'Leverantörer', recipes:'Recept', menu:'Dagsmeny', waste:'Svinn',
+    stock:'Förråd', report:'Rapport', quality:'Kvalitet', settings:'Inställningar'
+  };
+  const lblEl = document.getElementById('mobileSectionLabel');
+  if (lblEl) lblEl.textContent = labels[name] || name;
+  // Highlight mobile clone too
+  document.querySelectorAll('#mobileMenu .nav-btn').forEach(b => {
+    const m = (b.getAttribute('onclick') || '').match(/showSection\('([^']+)'\)/);
+    b.classList.toggle('active', m && m[1] === name);
+  });
   SECTIONS.forEach(s => {
     document.getElementById(`sec-${s}`).classList.toggle('hidden', s !== name);
     const nb = document.getElementById(`nav-${s}`);
@@ -1665,6 +1783,19 @@ function animateCounter(elId, target, duration = 800) {
   requestAnimationFrame(step);
 }
 
+function setKpiDelta(elId, change) {
+  const el = document.getElementById(elId);
+  if (!el || change == null || !isFinite(change)) {
+    if (el) el.textContent = '';
+    return;
+  }
+  const abs   = Math.abs(change);
+  const arrow = change > 2 ? '↑' : (change < -2 ? '↓' : '→');
+  const cls   = change > 2 ? 'delta-up' : (change < -2 ? 'delta-down' : 'delta-flat');
+  el.className = `text-xs mt-1 font-medium ${cls}`;
+  el.textContent = `${arrow} ${abs.toFixed(0)}% mot förra veckan`;
+}
+
 async function loadDashboard() {
   try {
     const res=await api('/api/dashboard'); const d=await res.json();
@@ -1672,6 +1803,15 @@ async function loadDashboard() {
     animateCounter('kpiUrgent',      d.urgent_count || 0);
     animateCounter('kpiLowPortions', d.low_portions_count || 0);
     animateCounter('kpiSales',       d.recent_sales_7d || 0);
+
+    // Compute week-over-week trend on total sales from daily_sales_30d
+    const daily30 = d.daily_sales_30d || [];
+    if (daily30.length >= 14) {
+      const last7  = daily30.slice(-7).reduce((s,r) => s + (r.total || 0), 0);
+      const prev7  = daily30.slice(-14, -7).reduce((s,r) => s + (r.total || 0), 0);
+      const change = prev7 > 0 ? ((last7 - prev7) / prev7) * 100 : null;
+      setKpiDelta('kpiSalesDelta', change);
+    }
 
     const daily=d.daily_sales_30d;
     const wrap=document.getElementById('dashChartWrap');
@@ -2004,7 +2144,7 @@ async function saveSupplier(){
   } catch(err){ showAlert(err.message,'error'); }
 }
 async function deleteSupplier(id,name){
-  if(!confirm(`Ta bort "${name}"?`)) return;
+  if (!(await confirmDialog(`Ta bort "${name}"?`, {danger:true, okText:'Ta bort'}))) return;
   try { const res=await api(`/api/suppliers/${id}`,{method:'DELETE'}); if(!res.ok) throw new Error((await res.json()).error);
     showAlert(`${name} borttagen`,'success'); await loadSuppliers(); } catch(err){ showAlert(err.message,'error'); }
 }
@@ -2124,7 +2264,7 @@ async function saveRecipe(){
   } catch(err){ showAlert(err.message,'error'); }
 }
 async function deleteRecipe(id,name){
-  if(!confirm(`Ta bort receptet "${name}"?`)) return;
+  if (!(await confirmDialog(`Ta bort receptet "${name}"?`, {danger:true, okText:'Ta bort'}))) return;
   try { const res=await api(`/api/recipes/${id}`,{method:'DELETE'}); if(!res.ok) throw new Error((await res.json()).error);
     showAlert(`${name} borttaget`,'success'); await loadRecipes(); } catch(err){ showAlert(err.message,'error'); }
 }
@@ -2408,7 +2548,7 @@ async function addProduct() {
 }
 
 async function deleteProduct(name) {
-  if (!confirm(`Ta bort "${name}" och all tillhörande försäljnings- och svinndata?\n\nDetta kan inte ångras.`)) return;
+  if (!(await confirmDialog(`Ta bort "${name}" och all tillhörande försäljnings- och svinndata?\n\nDetta kan inte ångras.`, {danger:true, okText:'Ja, ta bort allt'}))) return;
   try {
     const res  = await api(`/api/products/${encodeURIComponent(name)}`, {method:'DELETE'});
     const data = await res.json();
@@ -2537,6 +2677,65 @@ function showAlert(msg, type){
     setTimeout(() => toast.remove(), 250);
   }, 5000);
   while (container.children.length > 5) container.removeChild(container.firstChild);
+}
+
+// Styled confirm dialog — returns a Promise<boolean>
+function confirmDialog(message, opts = {}) {
+  return new Promise(resolve => {
+    const modal  = document.getElementById('confirmModal');
+    const msgEl  = document.getElementById('confirmMessage');
+    const okBtn  = document.getElementById('confirmOkBtn');
+    const cancel = document.getElementById('confirmCancelBtn');
+    const titleEl = document.getElementById('confirmTitle');
+    if (!modal) { resolve(window.confirm(message)); return; }
+    msgEl.textContent = message;
+    titleEl.textContent = opts.title || 'Bekräfta åtgärd';
+    okBtn.textContent   = opts.okText || 'Ja, fortsätt';
+    cancel.textContent  = opts.cancelText || 'Avbryt';
+    // Danger style for destructive actions
+    okBtn.className = opts.danger
+      ? 'text-sm bg-red-700 hover:bg-red-600 text-white px-5 py-2 font-medium rounded transition-colors'
+      : 'text-sm bg-rose-800 hover:bg-rose-700 text-white px-5 py-2 font-medium rounded transition-colors';
+    modal.classList.remove('hidden');
+    const cleanup = (val) => {
+      modal.classList.add('hidden');
+      okBtn.onclick = null; cancel.onclick = null;
+      resolve(val);
+    };
+    okBtn.onclick  = () => cleanup(true);
+    cancel.onclick = () => cleanup(false);
+  });
+}
+
+// Drag-and-drop setup — wire any element with class .drop-zone to its input
+function initDragAndDrop() {
+  document.querySelectorAll('.drop-zone').forEach(zone => {
+    if (zone.dataset.dndBound) return;
+    zone.dataset.dndBound = '1';
+    const inputId = zone.dataset.dropInput;
+    const type    = zone.dataset.dropType;
+    if (!inputId || !type) return;
+    ['dragenter','dragover'].forEach(ev => zone.addEventListener(ev, e => {
+      e.preventDefault(); e.stopPropagation();
+      zone.classList.add('dragging');
+    }));
+    ['dragleave','drop'].forEach(ev => zone.addEventListener(ev, e => {
+      e.preventDefault(); e.stopPropagation();
+      if (ev === 'dragleave' && zone.contains(e.relatedTarget)) return;
+      zone.classList.remove('dragging');
+    }));
+    zone.addEventListener('drop', e => {
+      const file = e.dataTransfer.files?.[0];
+      if (!file) return;
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      // Mimic the user picking the file
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      if (typeof onFileChosen === 'function') onFileChosen(input, type);
+    });
+  });
 }
 function statusBadge(s){return{urgent:'bg-red-500/15 text-red-400 border-red-500/30',soon:'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',plan:'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',unknown:'bg-slate-500/15 text-slate-400 border-slate-500/30'}[s]||'bg-slate-500/15 text-slate-400 border-slate-500/30';}
 function statusDotColor(s){return{urgent:'bg-red-500',soon:'bg-yellow-400',plan:'bg-emerald-500',unknown:'bg-slate-500'}[s]||'bg-slate-500';}
@@ -2769,7 +2968,7 @@ async function saveZettleCredentials() {
 }
 
 async function deleteZettleCredentials() {
-  if (!confirm('Ta bort Zettle-kopplingen?')) return;
+  if (!(await confirmDialog('Ta bort Zettle-kopplingen?', {danger:true, okText:'Ta bort'}))) return;
   try {
     const res = await api('/api/settings/zettle', {method: 'DELETE'});
     if (!res.ok) throw new Error((await res.json()).error);
@@ -3094,7 +3293,7 @@ async function saveEvent() {
 }
 
 async function deleteEvent(id) {
-  if (!confirm('Ta bort händelsen?')) return;
+  if (!(await confirmDialog('Ta bort händelsen?', {danger:true, okText:'Ta bort'}))) return;
   try {
     await api(`/api/events/${id}`, {method:'DELETE'});
     showAlert('Händelse borttagen','success');
