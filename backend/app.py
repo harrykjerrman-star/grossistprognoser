@@ -873,6 +873,63 @@ def set_product_price(product_name):
     return jsonify({"success": True})
 
 
+@app.post("/api/products")
+@require_auth
+def create_product():
+    body  = request.get_json(silent=True) or {}
+    name  = str(body.get("name", "")).strip()
+    unit  = str(body.get("unit", "st")).strip() or "st"
+    try:
+        initial_stock = float(body.get("initial_stock", "")) if body.get("initial_stock") != "" and body.get("initial_stock") is not None else None
+    except (ValueError, TypeError):
+        initial_stock = None
+
+    if not name:
+        return jsonify({"error": "Namn krävs"}), 400
+    if len(name) > 200:
+        return jsonify({"error": "Namn för långt (max 200 tecken)"}), 400
+
+    conn = get_connection()
+    existing = conn.execute("SELECT id FROM products WHERE name=?", (name,)).fetchone()
+    if existing:
+        conn.close()
+        return jsonify({"error": f"Varan '{name}' finns redan"}), 409
+
+    now = datetime.now().isoformat()
+    if initial_stock is not None and initial_stock >= 0:
+        conn.execute(
+            "INSERT INTO products (name, unit, current_stock, stock_initialized, stock_updated_at) VALUES (?,?,?,1,?)",
+            (name, unit, initial_stock, now)
+        )
+    else:
+        conn.execute("INSERT INTO products (name, unit) VALUES (?,?)", (name, unit))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "name": name}), 201
+
+
+@app.delete("/api/products/<product_name>")
+@require_auth
+def delete_product(product_name):
+    conn = get_connection()
+    prod = conn.execute("SELECT id FROM products WHERE name=?", (product_name,)).fetchone()
+    if not prod:
+        conn.close()
+        return jsonify({"error": "Varan hittades inte"}), 404
+
+    pid = prod["id"]
+    # Cascade: remove all related data
+    conn.execute("DELETE FROM sales WHERE product_id=?", (pid,))
+    conn.execute("DELETE FROM waste WHERE product_id=?", (pid,))
+    conn.execute("DELETE FROM expiry_dates WHERE product_id=?", (pid,))
+    conn.execute("DELETE FROM recipe_ingredients WHERE product_id=?", (pid,))
+    conn.execute("DELETE FROM zettle_product_mapping WHERE product_id=?", (pid,))
+    conn.execute("DELETE FROM products WHERE id=?", (pid,))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+
 @app.get("/api/order-email/<int:supplier_id>")
 @require_auth
 def order_email(supplier_id):

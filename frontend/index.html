@@ -619,6 +619,45 @@
   <!-- ══════ FÖRRÅD ══════ -->
   <div id="sec-stock" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
 
+    <!-- Hantera varutyper -->
+    <div class="bg-slate-800 border border-slate-700">
+      <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+        <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest" id="manageProductsTitle">Hantera varutyper</h2>
+        <button onclick="toggleAddProductForm()" class="text-xs bg-rose-800 hover:bg-rose-700 text-white px-3 py-1.5 font-medium transition-colors" id="addProductToggleBtn">+ Lägg till vara</button>
+      </div>
+      <!-- Add product form (hidden by default) -->
+      <div id="addProductForm" class="hidden px-6 py-4 border-b border-slate-700 bg-slate-700/20">
+        <div class="flex flex-wrap gap-3 items-end">
+          <div>
+            <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1.5" id="addProductNameLabel">Namn</label>
+            <input type="text" id="newProductName" placeholder="T.ex. Mjölk" maxlength="200"
+              class="w-48 bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1.5">Enhet</label>
+            <select id="newProductUnit" class="bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+              <option value="st">st</option>
+              <option value="kg">kg</option>
+              <option value="liter">liter</option>
+              <option value="g">g</option>
+              <option value="dl">dl</option>
+              <option value="cl">cl</option>
+              <option value="förp">förp</option>
+              <option value="krt">krt</option>
+              <option value="pack">pack</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1.5">Startsaldo (valfritt)</label>
+            <input type="number" id="newProductStock" placeholder="0" min="0" step="0.001"
+              class="w-28 bg-slate-700 border border-slate-600 px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+          </div>
+          <button onclick="addProduct()" class="text-sm bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 font-medium transition-colors">Lägg till</button>
+          <button onclick="toggleAddProductForm()" class="text-sm text-slate-400 hover:text-white px-3 py-2 border border-slate-600 hover:border-slate-500 transition-colors">Avbryt</button>
+        </div>
+      </div>
+    </div>
+
     <div class="bg-slate-800 border border-slate-700">
       <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
         <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Utgångsdatum — varningar</h2>
@@ -894,10 +933,13 @@ const LABELS = {
     recsColStock:    'Lager',
     recsColDays:     'Lagerdagar',
     // Stock table
-    stockOverviewTitle:  'Lageröversikt',
-    stockColProduct:     'Vara',
-    stockColBalance:     'Lagersaldo',
-    stockColSave:        'Ändra och spara',
+    stockOverviewTitle:    'Lageröversikt',
+    stockColProduct:       'Vara',
+    stockColBalance:       'Lagersaldo',
+    stockColSave:          'Ändra och spara',
+    manageProductsTitle:   'Hantera varutyper',
+    addProductToggleBtn:   '+ Lägg till vara',
+    addProductNameLabel:   'Varunamn',
     // Waste
     wasteSectionTitle:   'Kassationsanalys',
     wasteRegisterTitle:  'Registrera kassation',
@@ -953,10 +995,13 @@ const LABELS = {
     recsColStock:    'Förråd',
     recsColDays:     'Förråddagar',
     // Stock table
-    stockOverviewTitle:  'Förrådsöversikt',
-    stockColProduct:     'Ingrediens',
-    stockColBalance:     'Förrådsaldo',
-    stockColSave:        'Ändra och spara',
+    stockOverviewTitle:    'Förrådsöversikt',
+    stockColProduct:       'Ingrediens',
+    stockColBalance:       'Förrådsaldo',
+    stockColSave:          'Ändra och spara',
+    manageProductsTitle:   'Hantera ingredienstyper',
+    addProductToggleBtn:   '+ Lägg till ingrediens',
+    addProductNameLabel:   'Ingrediensnamn',
     // Waste
     wasteSectionTitle:   'Svinnanalys',
     wasteRegisterTitle:  'Registrera svinn',
@@ -1049,7 +1094,11 @@ function applyMode(mode) {
   if (wProd && wProd.options[0]) wProd.options[0].text = `-- Välj ${L('product')} --`;
 
   // ── Förråd / Lager section ─────────────────────────────────
-  _setText('stockOverviewTitle', L('stockOverviewTitle'));
+  _setText('stockOverviewTitle',  L('stockOverviewTitle'));
+  _setText('manageProductsTitle', L('manageProductsTitle'));
+  _setText('addProductNameLabel', L('addProductNameLabel'));
+  const addBtn = document.getElementById('addProductToggleBtn');
+  if (addBtn) addBtn.textContent = L('addProductToggleBtn');
 
   // ── Page title ─────────────────────────────────────────────
   document.title = isG ? 'Grossistprognos' : 'Restaurangprognos';
@@ -1739,6 +1788,52 @@ async function loadExpiryTable(){
 // ============================================================
 // Stock / Förråd
 // ============================================================
+function toggleAddProductForm() {
+  const form = document.getElementById('addProductForm');
+  const isHidden = form.classList.contains('hidden');
+  form.classList.toggle('hidden', !isHidden);
+  if (isHidden) {
+    document.getElementById('newProductName').focus();
+  } else {
+    document.getElementById('newProductName').value = '';
+    document.getElementById('newProductStock').value = '';
+    document.getElementById('newProductUnit').value = 'st';
+  }
+}
+
+async function addProduct() {
+  const name  = document.getElementById('newProductName').value.trim();
+  const unit  = document.getElementById('newProductUnit').value;
+  const stockVal = document.getElementById('newProductStock').value.trim();
+  const initial_stock = stockVal !== '' ? parseFloat(stockVal) : null;
+
+  if (!name) { showAlert('Ange ett namn för varan', 'error'); return; }
+
+  try {
+    const res  = await api('/api/products', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({name, unit, initial_stock})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showAlert(`Varan "${name}" har lagts till`, 'success');
+    toggleAddProductForm();
+    await loadStockTable();
+  } catch(err) { showAlert(err.message, 'error'); }
+}
+
+async function deleteProduct(name) {
+  if (!confirm(`Ta bort "${name}" och all tillhörande försäljnings- och svinndata?\n\nDetta kan inte ångras.`)) return;
+  try {
+    const res  = await api(`/api/products/${encodeURIComponent(name)}`, {method:'DELETE'});
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showAlert(`"${name}" har tagits bort`, 'success');
+    await loadStockTable();
+  } catch(err) { showAlert(err.message, 'error'); }
+}
+
 async function loadStockTable(){
   const c=document.getElementById('stockContainer');
   try {
@@ -1752,6 +1847,7 @@ async function loadStockTable(){
         <th class="pb-3 pr-4 font-semibold text-right">Inköpspris (kr)</th>
         <th class="pb-3 pr-4 font-semibold">Leverantör</th>
         <th class="pb-3 font-semibold text-right">${L('stockColSave')}</th>
+        <th class="pb-3 pl-3 font-semibold text-right"></th>
       </tr></thead><tbody id="stockTbody" class="divide-y divide-slate-700/40"></tbody></table></div>`;
     const tbody=document.getElementById('stockTbody');
     prodData.forEach((p,i)=>{
@@ -1766,23 +1862,28 @@ async function loadStockTable(){
         ?`<span class="text-slate-300 font-mono">${p.stock}</span>${updStr?`<span class="block text-xs text-slate-600 mt-0.5">Uppdaterad: ${updStr}</span>`:''}`
         :'<span class="text-amber-400 text-xs font-medium">Ej angivet</span>';
       const supOpts=`<option value="">– Ingen –</option>${supData.map(s=>`<option value="${s.id}"${p.supplier_id===s.id?' selected':''}>${escHtml(s.name)}</option>`).join('')}`;
+      const safeName=p.name.replace(/'/g,"\\'");
       tr.innerHTML=`
-        <td class="py-3 pr-4 font-medium text-white">${escHtml(p.name)}</td>
+        <td class="py-3 pr-4 font-medium text-white">${escHtml(p.name)}<span class="text-slate-600 text-xs ml-1.5">${escHtml(p.unit||'')}</span></td>
         <td class="py-3 pr-4 text-right">${stockBadge}</td>
         <td class="py-3 pr-4 text-right">
           <input type="number" id="${pid}" value="${p.price||''}" min="0" step="0.01" placeholder="0.00"
             class="w-20 bg-slate-700 border border-slate-600 px-2 py-1 text-white text-xs text-right focus:outline-none focus:ring-1 focus:ring-rose-700">
         </td>
         <td class="py-3 pr-4">
-          <select id="${tid}" onchange="updateProductSupplier('${p.name.replace(/'/g,"\\'")}')"
+          <select id="${tid}" onchange="updateProductSupplier('${safeName}')"
             class="bg-slate-700 border border-slate-600 px-2 py-1 text-white text-xs focus:outline-none focus:ring-1 focus:ring-rose-700">${supOpts}</select>
         </td>
         <td class="py-3 text-right">
           <div class="inline-flex items-center gap-2">
             <input type="number" id="${sid}" value="${p.stock_initialized?p.stock:''}" min="0" step="0.001" placeholder="${p.stock_initialized?'':'Ange mängd'}"
               class="w-24 bg-slate-700 border border-slate-600 px-2 py-1 text-white text-sm text-right focus:outline-none focus:ring-1 focus:ring-rose-700">
-            <button onclick="saveStock('${p.name.replace(/'/g,"\\'")}')" class="text-xs bg-slate-600 hover:bg-slate-500 text-white px-3 py-1 border border-slate-500 transition-colors whitespace-nowrap">Spara</button>
+            <button onclick="saveStock('${safeName}')" class="text-xs bg-slate-600 hover:bg-slate-500 text-white px-3 py-1 border border-slate-500 transition-colors whitespace-nowrap">Spara</button>
           </div>
+        </td>
+        <td class="py-3 pl-3 text-right">
+          <button onclick="deleteProduct('${safeName}')" title="Ta bort vara"
+            class="text-slate-600 hover:text-red-400 transition-colors text-base leading-none px-1" aria-label="Ta bort">&#10005;</button>
         </td>`;
       tbody.appendChild(tr);
     });
