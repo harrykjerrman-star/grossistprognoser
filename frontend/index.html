@@ -11,26 +11,139 @@
   <script>tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','Helvetica Neue','sans-serif']}}}}</script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <style>
-    body{font-family:'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;}
+    body{font-family:'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;
+         background:radial-gradient(ellipse at top, #1e293b 0%, #0f172a 60%);
+         min-height:100vh;}
+
+    /* --- Custom scrollbar --- */
+    ::-webkit-scrollbar { width:8px; height:8px; }
+    ::-webkit-scrollbar-track { background:rgba(15,23,42,0.4); }
+    ::-webkit-scrollbar-thumb { background:rgba(100,116,139,0.35); border-radius:4px; transition:background .15s; }
+    ::-webkit-scrollbar-thumb:hover { background:rgba(100,116,139,0.6); }
+
+    /* --- Status dot --- */
     .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-    .nav-btn{padding:.5rem .875rem;font-size:.75rem;font-weight:600;text-transform:uppercase;
-             letter-spacing:.05em;color:#64748b;transition:color .15s,border-color .15s;
-             border-bottom:2px solid transparent;white-space:nowrap;}
-    .nav-btn:hover{color:#cbd5e1;}
+
+    /* --- Nav buttons --- */
+    .nav-btn{padding:.6rem .875rem;font-size:.72rem;font-weight:600;text-transform:uppercase;
+             letter-spacing:.05em;color:#64748b;transition:color .15s, border-color .15s, background-color .15s;
+             border-bottom:2px solid transparent;white-space:nowrap;display:inline-flex;align-items:center;gap:.4rem;}
+    .nav-btn:hover{color:#cbd5e1; background:rgba(51,65,85,0.3);}
     .nav-btn.active{color:#fff;border-bottom-color:#be123c;}
-    .mode-card{padding:.75rem;border:2px solid #334155;background:rgba(51,65,85,0.4);transition:border-color .15s,background .15s;cursor:pointer;text-align:center;}
-    .mode-card:hover{border-color:#64748b;background:rgba(51,65,85,0.7);}
-    .mode-card.active{border-color:#be123c;background:rgba(190,18,60,0.12);}
+    .nav-btn svg{width:14px;height:14px;opacity:.7;}
+    .nav-btn.active svg{opacity:1;}
+
+    /* --- Mode cards --- */
+    .mode-card{padding:.75rem;border:2px solid #334155;background:rgba(51,65,85,0.4);
+               transition:all .18s ease;cursor:pointer;text-align:center;border-radius:6px;}
+    .mode-card:hover{border-color:#64748b;background:rgba(51,65,85,0.7);transform:translateY(-1px);}
+    .mode-card.active{border-color:#be123c;background:rgba(190,18,60,0.12);box-shadow:0 0 0 1px rgba(190,18,60,0.3);}
     .mode-card.active .mc-title{color:#fca5a5;}
+
+    /* --- Card hover lift --- */
+    .card{background:rgba(30,41,59,0.6);border:1px solid rgba(51,65,85,0.7);
+          backdrop-filter:blur(8px);transition:border-color .2s, transform .2s, box-shadow .2s;}
+    .card-hover:hover{border-color:rgba(100,116,139,0.6);transform:translateY(-1px);
+                       box-shadow:0 4px 16px rgba(0,0,0,0.25);}
+
+    /* --- Buttons --- */
+    button{transition:all .15s ease;}
+    button:not(:disabled):active{transform:scale(0.98);}
+    button:disabled{opacity:.5;cursor:not-allowed;}
+
+    .btn-primary{background:#be123c;color:white;font-weight:600;padding:.55rem 1rem;font-size:.8rem;
+                 transition:background .15s, box-shadow .15s, transform .1s;}
+    .btn-primary:hover:not(:disabled){background:#a30e34;box-shadow:0 4px 12px rgba(190,18,60,0.35);}
+
+    .btn-ghost{background:rgba(51,65,85,0.4);color:#cbd5e1;font-weight:500;padding:.5rem .9rem;font-size:.8rem;
+               border:1px solid rgba(71,85,105,0.5);transition:all .15s;}
+    .btn-ghost:hover:not(:disabled){background:rgba(51,65,85,0.7);border-color:rgba(100,116,139,0.7);color:#fff;}
+
+    /* --- Inputs --- */
+    input, select, textarea {
+      transition:border-color .15s, box-shadow .15s, background-color .15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline:none;
+      box-shadow:0 0 0 2px rgba(190,18,60,0.4);
+      border-color:#be123c !important;
+    }
+
+    /* --- Toast system --- */
+    #toastContainer{position:fixed;top:1rem;right:1rem;z-index:100;display:flex;flex-direction:column;gap:.5rem;pointer-events:none;max-width:380px;}
+    .toast{pointer-events:auto;display:flex;align-items:flex-start;gap:.6rem;padding:.85rem 1rem;
+           border-radius:8px;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,0.4);
+           font-size:.85rem;font-weight:500;line-height:1.4;animation:toast-in .3s cubic-bezier(0.34, 1.56, 0.64, 1);
+           position:relative;overflow:hidden;}
+    .toast.toast-success{background:rgba(6,78,59,0.92);border:1px solid rgba(16,185,129,0.4);color:#a7f3d0;}
+    .toast.toast-error{background:rgba(127,29,29,0.92);border:1px solid rgba(220,38,38,0.4);color:#fecaca;}
+    .toast.toast-info{background:rgba(30,58,138,0.92);border:1px solid rgba(59,130,246,0.4);color:#bfdbfe;}
+    .toast.toast-out{animation:toast-out .25s ease-in forwards;}
+    .toast .toast-icon{flex-shrink:0;font-size:1rem;line-height:1;margin-top:.05rem;}
+    .toast .toast-close{background:transparent;border:0;color:inherit;opacity:.55;font-size:1.1rem;line-height:1;cursor:pointer;padding:0;margin-left:auto;}
+    .toast .toast-close:hover{opacity:1;}
+    .toast::after{content:'';position:absolute;left:0;bottom:0;height:2px;background:currentColor;opacity:.4;width:100%;
+                  animation:toast-progress 5s linear forwards;}
+    @keyframes toast-in {from{transform:translateX(110%);opacity:0;} to{transform:translateX(0);opacity:1;}}
+    @keyframes toast-out {from{transform:translateX(0);opacity:1;} to{transform:translateX(110%);opacity:0;}}
+    @keyframes toast-progress {from{width:100%;} to{width:0%;}}
+
+    /* --- Section fade --- */
+    .section{animation:fade-in .22s ease-out;}
+    @keyframes fade-in {from{opacity:0;transform:translateY(4px);} to{opacity:1;transform:translateY(0);}}
+
+    /* --- Skeleton loader --- */
+    .skeleton{background:linear-gradient(90deg,#1e293b 0%,#334155 50%,#1e293b 100%);
+              background-size:200% 100%;animation:skeleton 1.5s ease-in-out infinite;border-radius:4px;}
+    @keyframes skeleton {0%{background-position:200% 0;} 100%{background-position:-200% 0;}}
+
+    /* --- Spinner --- */
+    .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.25);
+             border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite;}
+    .spinner-lg{width:24px;height:24px;border-width:3px;}
+    @keyframes spin {to{transform:rotate(360deg);}}
+
+    /* --- Pulse dot --- */
+    .pulse-dot{animation:pulse-soft 2s ease-in-out infinite;}
+    @keyframes pulse-soft {0%,100%{opacity:1;} 50%{opacity:.4;}}
+
+    /* --- Empty state --- */
+    .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;
+                 padding:3rem 1.5rem;text-align:center;color:#64748b;}
+    .empty-state .empty-icon{font-size:2.5rem;margin-bottom:.75rem;opacity:.4;}
+    .empty-state .empty-title{font-size:.95rem;color:#94a3b8;font-weight:500;margin-bottom:.35rem;}
+    .empty-state .empty-msg{font-size:.8rem;color:#64748b;max-width:380px;}
+
+    /* --- Tables --- */
+    .data-table { width:100%; border-collapse:collapse; }
+    .data-table th { text-align:left;padding:.7rem 1rem;font-size:.7rem;font-weight:600;
+                     text-transform:uppercase;letter-spacing:.05em;color:#64748b;
+                     border-bottom:1px solid rgba(51,65,85,0.7);background:rgba(15,23,42,0.4);}
+    .data-table td { padding:.7rem 1rem;font-size:.85rem;border-bottom:1px solid rgba(51,65,85,0.35);}
+    .data-table tbody tr { transition:background-color .12s; }
+    .data-table tbody tr:hover { background:rgba(51,65,85,0.25); }
+
+    /* --- Mobile nav --- */
+    @media (max-width: 768px) {
+      .nav-btn { font-size:.68rem; padding:.5rem .65rem; }
+      .nav-btn svg { display:none; }
+    }
+
+    /* --- Compact spacing on small screens --- */
+    @media (max-width: 640px) {
+      .section { padding-left:1rem !important; padding-right:1rem !important; }
+    }
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
 
 <!-- ===================== LOGIN ===================== -->
-<div id="loginScreen" class="fixed inset-0 flex items-center justify-center bg-slate-900 z-50">
-  <div class="bg-slate-800 shadow-2xl p-8 w-full max-w-sm mx-4 border border-slate-700">
+<div id="loginScreen" class="fixed inset-0 flex items-center justify-center z-50"
+     style="background:radial-gradient(ellipse at top, #1e293b 0%, #0f172a 70%);">
+  <div class="bg-slate-800/80 backdrop-blur-xl shadow-2xl p-8 w-full max-w-sm mx-4 border border-slate-700/60 rounded-xl"
+       style="box-shadow:0 25px 50px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(190,18,60,0.05);">
     <div class="text-center mb-8">
-      <div class="inline-flex items-center justify-center w-12 h-12 bg-rose-800 text-white font-bold text-lg mb-4 select-none" id="loginLogoLetter">R</div>
+      <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-rose-700 to-rose-900 text-white font-bold text-xl mb-4 select-none rounded-xl shadow-lg shadow-rose-900/50" id="loginLogoLetter">R</div>
       <h1 class="text-xl font-bold text-white tracking-tight" id="loginTitle">Restaurangprognos</h1>
       <p class="mt-1 text-xs uppercase tracking-widest" id="loginSubtitle" style="color:#94a3b8">Ingrediens &amp; Recepthantering</p>
     </div>
@@ -298,49 +411,118 @@
   <!-- Navigation -->
   <nav class="bg-slate-800 border-b border-slate-700 px-6 flex-shrink-0">
     <div class="max-w-7xl mx-auto flex items-center overflow-x-auto">
-      <button class="nav-btn active" id="nav-dash"      onclick="showSection('dash')">Dashboard</button>
-      <button class="nav-btn"        id="nav-import"    onclick="showSection('import')">Import</button>
-      <button class="nav-btn"        id="nav-forecast"  onclick="showSection('forecast')">Prognos</button>
-      <button class="nav-btn"        id="nav-recs"      onclick="showSection('recs')">Inköpsrek.</button>
-      <button class="nav-btn"        id="nav-suppliers" onclick="showSection('suppliers')">Leverantörer</button>
-      <button class="nav-btn"        id="nav-recipes"   onclick="showSection('recipes')">Recept</button>
-      <button class="nav-btn"        id="nav-menu"      onclick="showSection('menu')">Dagsmeny</button>
-      <button class="nav-btn"        id="nav-waste"     onclick="showSection('waste')">Svinn</button>
-      <button class="nav-btn"        id="nav-stock"     onclick="showSection('stock')">Förråd</button>
-      <button class="nav-btn"        id="nav-report"    onclick="showSection('report')">Prognosrapport</button>
-      <button class="nav-btn"        id="nav-quality"   onclick="showSection('quality')">Datakvalitet</button>
-      <button class="nav-btn"        id="nav-settings"  onclick="showSection('settings')">Inställningar</button>
+      <button class="nav-btn active" id="nav-dash"      onclick="showSection('dash')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-btn" id="nav-import" onclick="showSection('import')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+        Import
+      </button>
+      <button class="nav-btn" id="nav-forecast" onclick="showSection('forecast')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+        Prognos
+      </button>
+      <button class="nav-btn" id="nav-recs" onclick="showSection('recs')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        Inköpsrek.
+      </button>
+      <button class="nav-btn" id="nav-suppliers" onclick="showSection('suppliers')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Leverantörer
+      </button>
+      <button class="nav-btn" id="nav-recipes" onclick="showSection('recipes')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Recept
+      </button>
+      <button class="nav-btn" id="nav-menu" onclick="showSection('menu')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m-12 5h12m-12 5h12M4 7h.01M4 12h.01M4 17h.01"/></svg>
+        Dagsmeny
+      </button>
+      <button class="nav-btn" id="nav-waste" onclick="showSection('waste')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        Svinn
+      </button>
+      <button class="nav-btn" id="nav-stock" onclick="showSection('stock')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        Förråd
+      </button>
+      <button class="nav-btn" id="nav-report" onclick="showSection('report')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Rapport
+      </button>
+      <button class="nav-btn" id="nav-quality" onclick="showSection('quality')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        Kvalitet
+      </button>
+      <button class="nav-btn" id="nav-settings" onclick="showSection('settings')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Inställningar
+      </button>
     </div>
   </nav>
 
-  <!-- Alert bar -->
-  <div class="max-w-7xl mx-auto w-full px-6 pt-4">
-    <div id="alert" class="hidden px-4 py-3 text-sm flex items-center gap-2 border"></div>
-  </div>
+  <!-- Toast container -->
+  <div id="toastContainer"></div>
+  <!-- Legacy alert (kept hidden for backward compatibility) -->
+  <div id="alert" class="hidden"></div>
 
   <!-- ══════ DASHBOARD ══════ -->
   <div id="sec-dash" class="section max-w-7xl mx-auto w-full px-6 py-8 flex-1 space-y-6">
-    <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Översikt</h2>
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-xl font-bold text-white tracking-tight">Översikt</h2>
+        <p class="text-xs text-slate-500 mt-1" id="dashGreeting">Välkommen tillbaka</p>
+      </div>
+      <div class="text-right hidden sm:block">
+        <p class="text-xs text-slate-600 uppercase tracking-wider">Idag</p>
+        <p class="text-sm font-semibold text-slate-300" id="dashToday"></p>
+      </div>
+    </div>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-slate-800 border border-slate-700 p-5">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="kpiTotalLabel">Totalt ingredienser</p>
-        <p class="text-3xl font-bold text-white mt-2" id="kpiTotal">–</p>
-        <p class="text-xs text-slate-600 mt-1" id="kpiTotalSub">i systemet</p>
+      <div class="card card-hover p-5 relative overflow-hidden rounded-md">
+        <div class="absolute -right-4 -top-4 w-20 h-20 bg-slate-700/20 rounded-full"></div>
+        <div class="relative">
+          <div class="flex items-center gap-2 mb-1">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            <p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="kpiTotalLabel">Totalt ingredienser</p>
+          </div>
+          <p class="text-3xl font-bold text-white mt-2" id="kpiTotal">–</p>
+          <p class="text-xs text-slate-600 mt-1" id="kpiTotalSub">i systemet</p>
+        </div>
       </div>
-      <div class="bg-slate-800 border border-red-900/50 p-5">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="kpiUrgentLabel">Brådskande</p>
-        <p class="text-3xl font-bold text-red-400 mt-2" id="kpiUrgent">–</p>
-        <p class="text-xs text-slate-600 mt-1" id="kpiUrgentSub">ingredienser att köpa in</p>
+      <div class="card card-hover p-5 relative overflow-hidden rounded-md" style="border-color:rgba(127,29,29,0.4);">
+        <div class="absolute -right-4 -top-4 w-20 h-20 bg-red-900/15 rounded-full"></div>
+        <div class="relative">
+          <div class="flex items-center gap-2 mb-1">
+            <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="kpiUrgentLabel">Brådskande</p>
+          </div>
+          <p class="text-3xl font-bold text-red-400 mt-2" id="kpiUrgent">–</p>
+          <p class="text-xs text-slate-600 mt-1" id="kpiUrgentSub">ingredienser att köpa in</p>
+        </div>
       </div>
-      <div class="bg-slate-800 border border-yellow-900/50 p-5" id="kpiLowPortionsCard">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Recept — lågt förråd</p>
-        <p class="text-3xl font-bold text-amber-400 mt-2" id="kpiLowPortions">–</p>
-        <p class="text-xs text-slate-600 mt-1">rätter &lt; 10 portioner</p>
+      <div class="card card-hover p-5 relative overflow-hidden rounded-md" id="kpiLowPortionsCard" style="border-color:rgba(146,64,14,0.4);">
+        <div class="absolute -right-4 -top-4 w-20 h-20 bg-amber-900/15 rounded-full"></div>
+        <div class="relative">
+          <div class="flex items-center gap-2 mb-1">
+            <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg>
+            <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Recept — lågt förråd</p>
+          </div>
+          <p class="text-3xl font-bold text-amber-400 mt-2" id="kpiLowPortions">–</p>
+          <p class="text-xs text-slate-600 mt-1">rätter &lt; 10 portioner</p>
+        </div>
       </div>
-      <div class="bg-slate-800 border border-slate-700 p-5">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="kpiSalesLabel">Förbrukning 7 dagar</p>
-        <p class="text-3xl font-bold text-emerald-400 mt-2" id="kpiSales">–</p>
-        <p class="text-xs text-slate-600 mt-1" id="kpiSalesSub">enheter totalt</p>
+      <div class="card card-hover p-5 relative overflow-hidden rounded-md">
+        <div class="absolute -right-4 -top-4 w-20 h-20 bg-emerald-900/15 rounded-full"></div>
+        <div class="relative">
+          <div class="flex items-center gap-2 mb-1">
+            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            <p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="kpiSalesLabel">Förbrukning 7 dagar</p>
+          </div>
+          <p class="text-3xl font-bold text-emerald-400 mt-2" id="kpiSales">–</p>
+          <p class="text-xs text-slate-600 mt-1" id="kpiSalesSub">enheter totalt</p>
+        </div>
       </div>
     </div>
     <div class="bg-slate-800 border border-slate-700 p-6">
@@ -349,17 +531,32 @@
       <div id="dashChartWrap" class="hidden relative h-56"><canvas id="dashChart"></canvas></div>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <button onclick="showSection('import')" class="bg-slate-800 border border-slate-700 p-4 text-left hover:border-slate-500 transition-colors">
-        <p class="text-sm font-semibold text-white" id="dashImportTitle">Ladda upp data</p>
-        <p class="text-xs text-slate-500 mt-1" id="dashImportSub">Importera förbrukning, förråd eller rätt-försäljning</p>
+      <button onclick="showSection('import')" class="card card-hover p-4 text-left rounded-md group">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-9 h-9 rounded-md bg-rose-900/30 border border-rose-800/40 flex items-center justify-center text-rose-400 group-hover:bg-rose-900/50 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          </div>
+          <p class="text-sm font-semibold text-white" id="dashImportTitle">Ladda upp data</p>
+        </div>
+        <p class="text-xs text-slate-500" id="dashImportSub">Importera förbrukning, förråd eller rätt-försäljning</p>
       </button>
-      <button onclick="showSection('recs')" class="bg-slate-800 border border-slate-700 p-4 text-left hover:border-slate-500 transition-colors">
-        <p class="text-sm font-semibold text-white" id="dashRecsTitle">Inköpsrekommendationer</p>
-        <p class="text-xs text-slate-500 mt-1" id="dashRecsSub">Se vad som behöver köpas in just nu</p>
+      <button onclick="showSection('recs')" class="card card-hover p-4 text-left rounded-md group">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-9 h-9 rounded-md bg-amber-900/30 border border-amber-800/40 flex items-center justify-center text-amber-400 group-hover:bg-amber-900/50 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          </div>
+          <p class="text-sm font-semibold text-white" id="dashRecsTitle">Inköpsrekommendationer</p>
+        </div>
+        <p class="text-xs text-slate-500" id="dashRecsSub">Se vad som behöver köpas in just nu</p>
       </button>
-      <button onclick="showSection('recipes')" id="dashQuickRecipes" class="bg-slate-800 border border-slate-700 p-4 text-left hover:border-slate-500 transition-colors">
-        <p class="text-sm font-semibold text-white">Recept &amp; portioner</p>
-        <p class="text-xs text-slate-500 mt-1">Hantera recept och se hur många portioner du kan laga</p>
+      <button onclick="showSection('recipes')" id="dashQuickRecipes" class="card card-hover p-4 text-left rounded-md group">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-9 h-9 rounded-md bg-emerald-900/30 border border-emerald-800/40 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-900/50 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg>
+          </div>
+          <p class="text-sm font-semibold text-white">Recept &amp; portioner</p>
+        </div>
+        <p class="text-xs text-slate-500">Hantera recept och se hur många portioner du kan laga</p>
       </button>
     </div>
 
@@ -1112,6 +1309,14 @@ function initDashboard() {
   loadDashboard();
   loadWeatherWidget();
   loadAnomaliesWidget();
+  // Set greeting + today's date
+  const now    = new Date();
+  const hour   = now.getHours();
+  const greet  = hour < 6 ? 'God natt' : hour < 11 ? 'God morgon' : hour < 17 ? 'God dag' : hour < 22 ? 'God kväll' : 'God natt';
+  const dashG  = document.getElementById('dashGreeting');
+  if (dashG) dashG.textContent = `${greet} — här är din översikt`;
+  const todayEl = document.getElementById('dashToday');
+  if (todayEl) todayEl.textContent = now.toLocaleDateString('sv-SE', {weekday:'long', day:'numeric', month:'long'});
 }
 
 // ============================================================
@@ -1420,7 +1625,17 @@ async function loadDashboard() {
     const daily=d.daily_sales_30d;
     const wrap=document.getElementById('dashChartWrap');
     const ph=document.getElementById('dashChartPlaceholder');
-    if(!daily.length){ ph.textContent='Ingen data — ladda upp data eller generera demo-data.'; return; }
+    if(!daily.length){
+      ph.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <p class="empty-title">Ingen försäljningsdata än</p>
+        <p class="empty-msg">Ladda upp en CSV/Excel-fil via Import-sektionen eller generera demo-data för att komma igång.</p>
+        <button onclick="showSection('import')" class="mt-4 btn-primary text-xs px-4 py-2 rounded">Gå till Import</button>
+      </div>`;
+      wrap.classList.add('hidden');
+      ph.classList.remove('hidden');
+      return;
+    }
     ph.classList.add('hidden'); wrap.classList.remove('hidden');
     if(dashChartInst) dashChartInst.destroy();
     dashChartInst=new Chart(document.getElementById('dashChart').getContext('2d'),{
@@ -2241,12 +2456,25 @@ async function exportRecommendations(){
 // ============================================================
 // Helpers
 // ============================================================
-function showAlert(msg,type){
-  const el=document.getElementById('alert'); const isOk=type==='success';
-  el.textContent=msg;
-  el.className=`px-4 py-3 text-sm flex items-start gap-2 border ${isOk?'bg-emerald-500/10 border-emerald-500/30 text-emerald-400':'bg-red-500/10 border-red-500/30 text-red-400'}`;
-  el.classList.remove('hidden'); clearTimeout(el._t);
-  el._t=setTimeout(()=>el.classList.add('hidden'),6000);
+function showAlert(msg, type){
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const t = type === 'success' ? 'success' : (type === 'info' ? 'info' : 'error');
+  const icon = t === 'success' ? '✓' : (t === 'info' ? 'ℹ' : '⚠');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${t}`;
+  toast.innerHTML = `
+    <span class="toast-icon">${icon}</span>
+    <span class="flex-1">${escHtml(msg)}</span>
+    <button class="toast-close" onclick="this.parentElement.classList.add('toast-out');setTimeout(()=>this.parentElement.remove(),250)">&times;</button>
+  `;
+  container.appendChild(toast);
+  setTimeout(() => {
+    if (!toast.parentElement) return;
+    toast.classList.add('toast-out');
+    setTimeout(() => toast.remove(), 250);
+  }, 5000);
+  while (container.children.length > 5) container.removeChild(container.firstChild);
 }
 function statusBadge(s){return{urgent:'bg-red-500/15 text-red-400 border-red-500/30',soon:'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',plan:'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',unknown:'bg-slate-500/15 text-slate-400 border-slate-500/30'}[s]||'bg-slate-500/15 text-slate-400 border-slate-500/30';}
 function statusDotColor(s){return{urgent:'bg-red-500',soon:'bg-yellow-400',plan:'bg-emerald-500',unknown:'bg-slate-500'}[s]||'bg-slate-500';}
