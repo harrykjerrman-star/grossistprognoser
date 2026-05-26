@@ -181,6 +181,81 @@
     .delta-up   { color: #34d399; }
     .delta-down { color: #f87171; }
     .delta-flat { color: #64748b; }
+
+    /* --- Tooltips via [data-tooltip] --- */
+    [data-tooltip]{position:relative;cursor:help;}
+    [data-tooltip]::after{
+      content:attr(data-tooltip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+      background:rgba(15,23,42,0.97);color:#f1f5f9;padding:.5rem .7rem;border-radius:6px;font-size:.72rem;
+      white-space:normal;width:max-content;max-width:240px;line-height:1.4;font-weight:400;letter-spacing:0;
+      text-transform:none;z-index:60;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,0.4);
+      border:1px solid rgba(71,85,105,0.5);
+      opacity:0;visibility:hidden;transition:opacity .15s, visibility .15s;
+    }
+    [data-tooltip]:hover::after,
+    [data-tooltip]:focus::after { opacity:1;visibility:visible; }
+    .help-icon{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;
+              border-radius:50%;background:rgba(100,116,139,0.25);color:#94a3b8;font-size:9px;font-weight:700;
+              vertical-align:middle;margin-left:.3rem;cursor:help;transition:background .15s, color .15s;}
+    .help-icon:hover{background:rgba(190,18,60,0.3);color:#fda4af;}
+
+    /* --- Command palette (Cmd+K) --- */
+    #cmdPalette{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);
+                z-index:80;display:flex;align-items:flex-start;justify-content:center;
+                padding-top:15vh;animation:fade-in .15s ease;}
+    #cmdPalette.hidden{display:none;}
+    #cmdPalette > div{background:rgba(30,41,59,0.97);border:1px solid rgba(71,85,105,0.6);
+                       border-radius:10px;width:100%;max-width:560px;box-shadow:0 25px 80px rgba(0,0,0,0.5);
+                       margin:0 1rem;overflow:hidden;}
+    #cmdSearch{width:100%;background:transparent;border:0;border-bottom:1px solid rgba(71,85,105,0.4);
+               padding:1rem 1.25rem;font-size:.95rem;color:#f1f5f9;outline:none;}
+    #cmdSearch::placeholder{color:#64748b;}
+    #cmdResults{max-height:50vh;overflow-y:auto;padding:.5rem 0;}
+    .cmd-item{display:flex;align-items:center;gap:.7rem;padding:.6rem 1.25rem;font-size:.85rem;
+              color:#cbd5e1;cursor:pointer;transition:background .12s;}
+    .cmd-item.active,.cmd-item:hover{background:rgba(190,18,60,0.15);color:#fff;}
+    .cmd-item svg{width:16px;height:16px;opacity:.7;flex-shrink:0;}
+    .cmd-item .cmd-shortcut{margin-left:auto;font-size:.7rem;color:#64748b;
+                             border:1px solid rgba(71,85,105,0.5);padding:.1rem .35rem;border-radius:3px;
+                             font-family:monospace;}
+    .cmd-footer{padding:.55rem 1rem;border-top:1px solid rgba(51,65,85,0.4);
+                font-size:.7rem;color:#64748b;display:flex;gap:1rem;justify-content:center;}
+    .cmd-footer kbd{background:rgba(15,23,42,0.6);border:1px solid rgba(71,85,105,0.5);
+                    border-radius:3px;padding:.05rem .35rem;font-family:monospace;font-size:.7rem;color:#cbd5e1;}
+
+    /* --- Theme toggle: light variant --- */
+    [data-theme="light"] body{background:radial-gradient(ellipse at top, #f8fafc 0%, #e2e8f0 70%);color:#0f172a;}
+    [data-theme="light"] .bg-slate-900{background-color:#f1f5f9 !important;}
+    [data-theme="light"] .bg-slate-800,
+    [data-theme="light"] .bg-slate-800\/80,
+    [data-theme="light"] .bg-slate-800\/60{background-color:#ffffff !important;}
+    [data-theme="light"] .bg-slate-700,
+    [data-theme="light"] .bg-slate-700\/40,
+    [data-theme="light"] .bg-slate-700\/30,
+    [data-theme="light"] .bg-slate-700\/50{background-color:#f1f5f9 !important;}
+    [data-theme="light"] .border-slate-700,
+    [data-theme="light"] .border-slate-600,
+    [data-theme="light"] .border-slate-700\/40{border-color:#cbd5e1 !important;}
+    [data-theme="light"] .text-white{color:#0f172a !important;}
+    [data-theme="light"] .text-slate-100{color:#1e293b !important;}
+    [data-theme="light"] .text-slate-300{color:#334155 !important;}
+    [data-theme="light"] .text-slate-400{color:#475569 !important;}
+    [data-theme="light"] .text-slate-500{color:#64748b !important;}
+    [data-theme="light"] .text-slate-600{color:#94a3b8 !important;}
+    [data-theme="light"] .card{background:#ffffff !important;border-color:#e2e8f0 !important;}
+    [data-theme="light"] input,
+    [data-theme="light"] select,
+    [data-theme="light"] textarea{background:#ffffff !important;color:#0f172a !important;border-color:#cbd5e1 !important;}
+    [data-theme="light"] .data-table th,
+    [data-theme="light"] .sticky-head th,
+    [data-theme="light"] thead th{background:#f8fafc !important;color:#475569 !important;}
+    [data-theme="light"] nav.bg-slate-800{background-color:#ffffff !important;border-bottom-color:#e2e8f0 !important;}
+    [data-theme="light"] header.bg-slate-800{background-color:#ffffff !important;}
+
+    /* --- Skeleton row --- */
+    .sk-bar{display:block;background:linear-gradient(90deg,#1e293b 0%,#334155 50%,#1e293b 100%);
+            background-size:200% 100%;animation:skeleton 1.5s ease-in-out infinite;height:1rem;border-radius:4px;}
+    [data-theme="light"] .sk-bar{background:linear-gradient(90deg,#e2e8f0 0%,#f1f5f9 50%,#e2e8f0 100%);background-size:200% 100%;}
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
@@ -358,6 +433,19 @@
   </div>
 </div>
 
+<!-- ===================== COMMAND PALETTE (Cmd+K) ===================== -->
+<div id="cmdPalette" class="hidden" onclick="if(event.target===this)closeCmdPalette()">
+  <div onclick="event.stopPropagation()">
+    <input id="cmdSearch" type="text" placeholder="Hoppa till sektion eller åtgärd..." autocomplete="off">
+    <div id="cmdResults"></div>
+    <div class="cmd-footer">
+      <span><kbd>↑</kbd> <kbd>↓</kbd> navigera</span>
+      <span><kbd>↵</kbd> öppna</span>
+      <span><kbd>Esc</kbd> stäng</span>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== CONFIRM DIALOG ===================== -->
 <div id="confirmModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
   <div class="bg-slate-800 border border-slate-600 w-full max-w-md shadow-2xl rounded-lg overflow-hidden">
@@ -471,7 +559,18 @@
           <p class="text-xs text-slate-500 mt-0.5 leading-none" id="headerEmail"></p>
         </div>
       </div>
-      <button onclick="logout()" class="text-xs text-slate-400 hover:text-white px-3 py-1.5 hover:bg-slate-700 transition-colors border border-transparent hover:border-slate-600">Logga ut</button>
+      <div class="flex items-center gap-2">
+        <button onclick="openCmdPalette()" data-tooltip="Snabbsök & navigera (Ctrl+K)" class="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 hover:text-white px-3 py-1.5 hover:bg-slate-700 transition-colors border border-slate-700 hover:border-slate-500 rounded">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <span>Sök</span>
+          <kbd class="text-[10px] bg-slate-900/60 border border-slate-600/50 px-1 rounded font-mono">⌘K</kbd>
+        </button>
+        <button onclick="toggleTheme()" id="themeToggle" data-tooltip="Växla mörkt/ljust tema" class="text-slate-400 hover:text-white p-1.5 hover:bg-slate-700 transition-colors rounded">
+          <svg id="themeIconDark" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          <svg id="themeIconLight" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        </button>
+        <button onclick="logout()" class="text-xs text-slate-400 hover:text-white px-3 py-1.5 hover:bg-slate-700 transition-colors border border-transparent hover:border-slate-600 rounded">Logga ut</button>
+      </div>
     </div>
   </header>
 
@@ -600,6 +699,7 @@
           <p class="text-3xl font-bold text-emerald-400 mt-2" id="kpiSales">–</p>
           <p class="text-xs text-slate-600 mt-1" id="kpiSalesSub">enheter totalt</p>
           <p class="" id="kpiSalesDelta"></p>
+          <canvas id="kpiSalesSparkline" class="mt-2 w-full" style="height:32px"></canvas>
         </div>
       </div>
     </div>
@@ -817,7 +917,7 @@
           <button onclick="loadRecommendations()" class="text-xs text-slate-500 hover:text-white transition-colors px-2 py-1 hover:bg-slate-700 rounded">↺ Uppdatera</button>
         </div>
       </div>
-      <div id="recsContainer" class="p-6"><p class="text-slate-600 text-sm text-center py-8">Laddar...</p></div>
+      <div id="recsContainer" class="p-6"><div class="space-y-3"><div class="sk-bar h-4" style="width:55%"></div><div class="sk-bar h-4" style="width:80%"></div><div class="sk-bar h-4" style="width:70%"></div><div class="sk-bar h-4" style="width:90%"></div><div class="sk-bar h-4" style="width:60%"></div></div></div>
     </div>
   </div>
 
@@ -1018,7 +1118,7 @@
           <button onclick="loadStockTable()" class="text-xs text-slate-500 hover:text-white px-2 py-1 hover:bg-slate-700 rounded">↺ Uppdatera</button>
         </div>
       </div>
-      <div id="stockContainer" class="p-6"><p class="text-slate-600 text-sm text-center py-6">Laddar...</p></div>
+      <div id="stockContainer" class="p-6"><div class="space-y-3"><div class="sk-bar h-4" style="width:60%"></div><div class="sk-bar h-4" style="width:85%"></div><div class="sk-bar h-4" style="width:70%"></div><div class="sk-bar h-4" style="width:90%"></div><div class="sk-bar h-4" style="width:65%"></div></div></div>
     </div>
   </div>
 
@@ -1029,7 +1129,7 @@
     <!-- Summary KPIs -->
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
       <div class="bg-slate-800 border border-slate-700 p-5">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Genomsnittlig noggrannhet</p>
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Genomsnittlig noggrannhet<span class="help-icon" data-tooltip="100 minus genomsnittligt procentfel (MAPE) över senaste 30 dagarna. Högre = bättre.">?</span></p>
         <p class="text-3xl font-bold text-emerald-400 mt-2" id="reportAvgAccuracy">–</p>
         <p class="text-xs text-slate-600 mt-1">senaste 30 dagarna</p>
       </div>
@@ -1051,7 +1151,7 @@
         <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Träffsäkerhet per produkt</h3>
       </div>
       <div id="reportTableContainer" class="p-4">
-        <p class="text-slate-600 text-sm text-center py-6">Laddar rapport...</p>
+        <div class="space-y-3 py-2"><div class="sk-bar h-4" style="width:65%"></div><div class="sk-bar h-4" style="width:85%"></div><div class="sk-bar h-4" style="width:75%"></div></div>
       </div>
     </div>
 
@@ -1091,7 +1191,7 @@
     <!-- Summary KPIs -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
       <div class="bg-slate-800 border border-slate-700 p-4">
-        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Genomsnittlig kvalitet</p>
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Genomsnittlig kvalitet<span class="help-icon" data-tooltip="Poäng 1-10 baserat på historiklängd, datakomplethet och ogranskade extremvärden. Genomsnitt över alla produkter.">?</span></p>
         <p class="text-3xl font-bold text-emerald-400 mt-1" id="qualityAvgScore">–</p>
         <p class="text-xs text-slate-600 mt-0.5">av 10</p>
       </div>
@@ -1115,7 +1215,7 @@
         <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Kvalitet per produkt</h3>
       </div>
       <div id="qualityTableContainer" class="overflow-x-auto">
-        <p class="text-slate-600 text-sm text-center py-8">Laddar...</p>
+        <div class="space-y-3 py-2"><div class="sk-bar h-4" style="width:50%"></div><div class="sk-bar h-4" style="width:85%"></div><div class="sk-bar h-4" style="width:65%"></div></div>
       </div>
     </div>
 
@@ -1804,13 +1904,18 @@ async function loadDashboard() {
     animateCounter('kpiLowPortions', d.low_portions_count || 0);
     animateCounter('kpiSales',       d.recent_sales_7d || 0);
 
-    // Compute week-over-week trend on total sales from daily_sales_30d
+    // Week-over-week trend + 7-day sparkline
     const daily30 = d.daily_sales_30d || [];
     if (daily30.length >= 14) {
       const last7  = daily30.slice(-7).reduce((s,r) => s + (r.total || 0), 0);
       const prev7  = daily30.slice(-14, -7).reduce((s,r) => s + (r.total || 0), 0);
       const change = prev7 > 0 ? ((last7 - prev7) / prev7) * 100 : null;
       setKpiDelta('kpiSalesDelta', change);
+    }
+    if (daily30.length >= 2) {
+      const last7vals = daily30.slice(-7).map(r => r.total || 0);
+      // Wait until canvas has a real width
+      requestAnimationFrame(() => renderSparkline('kpiSalesSparkline', last7vals));
     }
 
     const daily=d.daily_sales_30d;
@@ -2042,7 +2147,7 @@ async function loadRecommendations(){
       <thead><tr class="text-slate-500 text-xs uppercase tracking-wider text-left border-b border-slate-700">
         <th class="pb-3 pr-3 font-semibold">Status</th><th class="pb-3 pr-4 font-semibold">${L('recsColProduct')}</th>
         <th class="pb-3 pr-4 font-semibold text-right">${L('recsColStock')}</th><th class="pb-3 pr-4 font-semibold text-right">Prognos ${fDays}d</th>
-        <th class="pb-3 pr-4 font-semibold text-right">${L('orderAction')}</th><th class="pb-3 pr-4 font-semibold text-right">${L('recsColDays')}</th>
+        <th class="pb-3 pr-4 font-semibold text-right">${L('orderAction')}</th><th class="pb-3 pr-4 font-semibold text-right">${L('recsColDays')}<span class="help-icon" data-tooltip="Hur många dagar nuvarande lager räcker baserat på senaste veckans genomsnittliga försäljning.">?</span></th>
         <th class="pb-3 pr-4 font-semibold">Leverantör</th>
       </tr></thead><tbody id="recsTbody" class="divide-y divide-slate-700/40"></tbody></table></div>`;
     const tbody=document.getElementById('recsTbody');
@@ -2705,6 +2810,212 @@ function confirmDialog(message, opts = {}) {
     okBtn.onclick  = () => cleanup(true);
     cancel.onclick = () => cleanup(false);
   });
+}
+
+// Skeleton loaders — reusable shimmer rows
+function skeletonRows(count = 4, options = {}) {
+  const cls = options.compact ? 'sk-bar h-3 my-2' : 'sk-bar h-4 my-3';
+  const widths = ['100%', '85%', '92%', '78%', '95%', '70%'];
+  let html = '<div class="px-4 py-3">';
+  for (let i = 0; i < count; i++) {
+    html += `<div class="${cls}" style="width:${widths[i % widths.length]}"></div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function skeletonTable(rows = 5, cols = 4) {
+  let html = '<div class="px-4 py-3 space-y-3">';
+  for (let r = 0; r < rows; r++) {
+    html += '<div class="flex gap-3 items-center">';
+    for (let c = 0; c < cols; c++) {
+      const widths = ['25%','35%','15%','15%','10%'];
+      html += `<div class="sk-bar h-4" style="width:${widths[c % widths.length]}"></div>`;
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+// ────────────────────────────────────────────────────────────
+// Theme toggle (dark <-> light)
+// ────────────────────────────────────────────────────────────
+function applyTheme(theme) {
+  const html = document.documentElement;
+  if (theme === 'light') {
+    html.setAttribute('data-theme', 'light');
+    document.getElementById('themeIconDark')?.classList.add('hidden');
+    document.getElementById('themeIconLight')?.classList.remove('hidden');
+  } else {
+    html.removeAttribute('data-theme');
+    document.getElementById('themeIconDark')?.classList.remove('hidden');
+    document.getElementById('themeIconLight')?.classList.add('hidden');
+  }
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  const next    = current === 'light' ? 'dark' : 'light';
+  localStorage.setItem('g_theme', next);
+  applyTheme(next);
+  showAlert(next === 'light' ? 'Ljust tema aktiverat' : 'Mörkt tema aktiverat', 'info');
+}
+
+// Apply saved theme as early as possible
+(function() {
+  const t = localStorage.getItem('g_theme');
+  if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+})();
+
+// ────────────────────────────────────────────────────────────
+// Command palette (Ctrl+K / Cmd+K)
+// ────────────────────────────────────────────────────────────
+const CMD_ITEMS = [
+  { label: 'Dashboard',                   section: 'dash',      icon: '📊' },
+  { label: 'Import — ladda upp data',     section: 'import',    icon: '⬆️' },
+  { label: 'Prognos per produkt',         section: 'forecast',  icon: '📈' },
+  { label: 'Inköpsrekommendationer',      section: 'recs',      icon: '🛒' },
+  { label: 'Leverantörer',                section: 'suppliers', icon: '🏢' },
+  { label: 'Recept',                      section: 'recipes',   icon: '📖' },
+  { label: 'Dagsmeny',                    section: 'menu',      icon: '🍽️' },
+  { label: 'Svinn / Kassation',           section: 'waste',     icon: '🗑️' },
+  { label: 'Förråd / Lager',              section: 'stock',     icon: '📦' },
+  { label: 'Prognosrapport',              section: 'report',    icon: '📋' },
+  { label: 'Datakvalitet',                section: 'quality',   icon: '🛡️' },
+  { label: 'Inställningar & integrationer', section: 'settings', icon: '⚙️' },
+  { label: 'Fråga AI om ditt lager',      action: 'openAiChat', icon: '✦' },
+  { label: 'Växla tema (ljust/mörkt)',    action: 'toggleTheme', icon: '🌓' },
+  { label: 'Logga ut',                    action: 'logout',     icon: '🚪' },
+];
+let _cmdActive = 0;
+
+function openCmdPalette() {
+  const p = document.getElementById('cmdPalette');
+  p.classList.remove('hidden');
+  const input = document.getElementById('cmdSearch');
+  input.value = '';
+  renderCmdResults('');
+  setTimeout(() => input.focus(), 10);
+}
+
+function closeCmdPalette() {
+  document.getElementById('cmdPalette').classList.add('hidden');
+}
+
+function _filterCmd(q) {
+  q = (q || '').toLowerCase().trim();
+  if (!q) return CMD_ITEMS.slice(0, 10);
+  return CMD_ITEMS.filter(it => it.label.toLowerCase().includes(q));
+}
+
+function renderCmdResults(q) {
+  const list = _filterCmd(q);
+  _cmdActive = 0;
+  const c = document.getElementById('cmdResults');
+  if (!list.length) {
+    c.innerHTML = '<div class="px-4 py-6 text-center text-slate-600 text-sm">Inga träffar</div>';
+    return;
+  }
+  c.innerHTML = list.map((it, i) => `
+    <div class="cmd-item ${i === 0 ? 'active' : ''}" data-idx="${i}" onclick="_runCmd(${i})">
+      <span style="font-size:1rem">${it.icon}</span>
+      <span class="flex-1">${escHtml(it.label)}</span>
+      <span class="cmd-shortcut">↵</span>
+    </div>
+  `).join('');
+}
+
+function _runCmd(idx) {
+  const q    = document.getElementById('cmdSearch').value;
+  const list = _filterCmd(q);
+  const it   = list[idx];
+  if (!it) return;
+  closeCmdPalette();
+  if (it.section) showSection(it.section);
+  else if (it.action) {
+    try { window[it.action]?.(); }
+    catch (e) { console.error(e); }
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  // Cmd+K / Ctrl+K opens palette
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    openCmdPalette();
+    return;
+  }
+  const palette = document.getElementById('cmdPalette');
+  if (!palette || palette.classList.contains('hidden')) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeCmdPalette(); return; }
+  const items = palette.querySelectorAll('.cmd-item');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    _cmdActive = Math.min(items.length - 1, _cmdActive + 1);
+    items.forEach((el, i) => el.classList.toggle('active', i === _cmdActive));
+    items[_cmdActive].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    _cmdActive = Math.max(0, _cmdActive - 1);
+    items.forEach((el, i) => el.classList.toggle('active', i === _cmdActive));
+    items[_cmdActive].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    _runCmd(_cmdActive);
+  }
+});
+
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'cmdSearch') renderCmdResults(e.target.value);
+});
+
+// ────────────────────────────────────────────────────────────
+// Sparkline (mini chart on KPI cards)
+// ────────────────────────────────────────────────────────────
+function renderSparkline(canvasId, values, color = 'rgba(52,211,153,0.8)') {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || !values || values.length < 2) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w   = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width  = w * dpr;
+  canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, 1);
+  const range = (max - min) || 1;
+  const pad   = 2;
+
+  // Filled gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, color.replace(/[\d.]+\)/, '0.25)'));
+  grad.addColorStop(1, color.replace(/[\d.]+\)/, '0.0)'));
+  ctx.beginPath();
+  values.forEach((v, i) => {
+    const x = pad + (i / (values.length - 1)) * (w - 2 * pad);
+    const y = h - pad - ((v - min) / range) * (h - 2 * pad);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.lineTo(w - pad, h - pad);
+  ctx.lineTo(pad, h - pad);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  values.forEach((v, i) => {
+    const x = pad + (i / (values.length - 1)) * (w - 2 * pad);
+    const y = h - pad - ((v - min) / range) * (h - 2 * pad);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = 1.5;
+  ctx.stroke();
 }
 
 // Drag-and-drop setup — wire any element with class .drop-zone to its input
