@@ -7,6 +7,12 @@ import pandas as pd
 
 from database import get_connection
 
+try:
+    from data_quality import get_cleaned_series, get_quality_report
+    _HAS_DQ = True
+except ImportError:
+    _HAS_DQ = False
+
 logging.getLogger("prophet").setLevel(logging.WARNING)
 logging.getLogger("cmdstanpy").setLevel(logging.WARNING)
 logging.getLogger("NP.forecaster").setLevel(logging.ERROR)
@@ -273,9 +279,25 @@ def get_forecast(product_name: str, days: int = 7) -> dict | None:
         conn.close()
         return None
 
-    df = pd.DataFrame([{"ds": r["date"], "y": float(r["qty"])} for r in rows])
-    df["ds"] = pd.to_datetime(df["ds"])
-    df = df.sort_values("ds").reset_index(drop=True)
+    # Use cleaned series (outlier replacements + closed day removal) when available
+    if _HAS_DQ:
+        df = get_cleaned_series(product["id"], conn)
+        if len(df) < 2:
+            df = pd.DataFrame([{"ds": r["date"], "y": float(r["qty"])} for r in rows])
+            df["ds"] = pd.to_datetime(df["ds"])
+            df = df.sort_values("ds").reset_index(drop=True)
+    else:
+        df = pd.DataFrame([{"ds": r["date"], "y": float(r["qty"])} for r in rows])
+        df["ds"] = pd.to_datetime(df["ds"])
+        df = df.sort_values("ds").reset_index(drop=True)
+
+    # Build history metadata
+    history_days = len(df)
+    history_warnings = []
+    if history_days < 30:
+        history_warnings.append("Kortare än 30 dagars historik — prognosen är osäker")
+    elif history_days < 365:
+        history_warnings.append("Kortare än 365 dagars historik — säsongsmönster kanske inte fångas helt")
 
     current_stock = product["current_stock"]
     stock_init    = bool(product["stock_initialized"])
@@ -399,6 +421,8 @@ def get_forecast(product_name: str, days: int = 7) -> dict | None:
         "total_forecast":    round(total_forecast),
         "status":            status,
         "method":            method,
+        "history_days":      history_days,
+        "history_warnings":  history_warnings,
     }
 
 

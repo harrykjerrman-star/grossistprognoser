@@ -38,12 +38,52 @@ except ImportError:
 from database import get_connection, init_db
 from forecast import generate_demo_data, get_forecast
 
+try:
+    from data_quality import scan_all_products, get_quality_report, sync_outliers
+    _HAS_DQ = True
+except ImportError:
+    _HAS_DQ = False
+
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+    _HAS_SCHEDULER = True
+except ImportError:
+    _HAS_SCHEDULER = False
+
+_training_status: dict = {"running": False, "last_ran": None, "last_result": None}
+
 app = Flask(__name__)
 CORS(app)
 
 _tokens: dict[str, dict] = {}
 
 init_db()
+
+
+def _run_scan_background():
+    """Run quality scan in background, update _training_status."""
+    global _training_status
+    if _training_status["running"]:
+        return
+    _training_status["running"] = True
+    try:
+        if _HAS_DQ:
+            result = scan_all_products()
+            _training_status["last_result"] = result
+    except Exception as exc:
+        _training_status["last_result"] = {"status": "error", "message": str(exc)}
+    finally:
+        _training_status["running"]  = False
+        _training_status["last_ran"] = datetime.now().isoformat()
+
+
+if _HAS_SCHEDULER:
+    try:
+        _scheduler = BackgroundScheduler()
+        _scheduler.add_job(_run_scan_background, "cron", hour=2, minute=0)
+        _scheduler.start()
+    except Exception:
+        pass
 
 
 # ─────────────────────────────────────────
@@ -1622,6 +1662,9 @@ def upload():
         conn.close()
         msg = f"Laddade upp {inserted} försäljningsposter"
         if auto_deducted: msg += f". Förråd minskat: {', '.join(auto_deducted)}"
+        # Trigger quality scan in background after new data upload
+        import threading as _threading
+        _threading.Thread(target=_run_scan_background, daemon=True).start()
         return jsonify({"success":True,"message":msg,"products":list(upload_map.keys())})
     except Exception as exc:
         return jsonify({"error": f"Fel: {exc}"}), 500
@@ -1653,7 +1696,7 @@ def get_sales(product_name):
     rows = conn.execute("""
         SELECT s.date, SUM(s.quantity) AS quantity FROM sales s
         JOIN products p ON s.product_id=p.id WHERE p.name=?
-        GROUP BY s.date ORDER BY s.date LIMIT 90
+        GROUP BY s.date ORDER BY s.date LIMIT 730
     """, (product_name,)).fetchall()
     conn.close()
     return jsonify([{"date":r["date"],"quantity":r["quantity"]} for r in rows])
@@ -2041,6 +2084,150 @@ def export_recommendations():
     return send_file(buf,as_attachment=True,
                      download_name=f"inkopsrekommendationer_{datetime.now().strftime('%Y%m%d')}_{days}d.xlsx",
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+# ─────────────────────────────────────────
+# Data quality
+# ─────────────────────────────────────────
+
+@app.get("/api/data-quality")
+@require_auth
+def data_quality_all():
+    if not _HAS_DQ:
+        return jsonify({"error": "data_quality module unavailable"}), 503
+    conn     = get_connection()
+    products = conn.execute("SELECT id, name FROM products ORDER BY name").fetchall()
+    reports  = []
+    for p in products:
+        rpt = get_quality_report(p["id"], conn)
+        rpt["product"] = p["name"]
+        reports.append(rpt)
+    conn.close()
+    avg_score = round(sum(r["quality_score"] for r in reports) / len(reports), 1) if reports else None
+    return jsonify({"products": reports, "avg_quality_score": avg_score,
+                    "training_status": _training_status})
+
+
+@app.post("/api/data-quality/scan")
+@require_auth
+def trigger_scan():
+    import threading as _threading
+    _threading.Thread(target=_run_scan_background, daemon=True).start()
+    return jsonify({"success": True, "message": "Kvalitetsskanning startad i bakgrunden"})
+
+
+@app.get("/api/data-quality/status")
+@require_auth
+def training_status():
+    return jsonify(_training_status)
+
+
+# ── Outliers ─────────────────────────────
+
+@app.get("/api/outliers")
+@require_auth
+def get_outliers():
+    status = request.args.get("status", "pending")
+    conn   = get_connection()
+    rows   = conn.execute("""
+        SELECT o.id, p.name AS product, p.id AS product_id,
+               o.date, o.original_value, o.interpolated_value,
+               o.status, o.reviewed_at
+        FROM outliers o JOIN products p ON o.product_id=p.id
+        WHERE o.status=?
+        ORDER BY o.date DESC
+        LIMIT 200
+    """, (status,)).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.put("/api/outliers/<int:outlier_id>/review")
+@require_auth
+def review_outlier(outlier_id):
+    body   = request.get_json(silent=True) or {}
+    action = str(body.get("action", "")).strip()   # "confirm" or "keep"
+    if action not in ("confirm", "keep"):
+        return jsonify({"error": "action måste vara 'confirm' eller 'keep'"}), 400
+    status = "confirmed_outlier" if action == "confirm" else "confirmed_normal"
+    conn   = get_connection()
+    conn.execute(
+        "UPDATE outliers SET status=?, reviewed_at=? WHERE id=?",
+        (status, datetime.now().isoformat(), outlier_id)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "status": status})
+
+
+@app.put("/api/outliers/review-bulk")
+@require_auth
+def review_outliers_bulk():
+    body   = request.get_json(silent=True) or {}
+    ids    = body.get("ids", [])
+    action = str(body.get("action", "")).strip()
+    if action not in ("confirm", "keep"):
+        return jsonify({"error": "action måste vara 'confirm' eller 'keep'"}), 400
+    if not ids:
+        return jsonify({"error": "ids krävs"}), 400
+    status = "confirmed_outlier" if action == "confirm" else "confirmed_normal"
+    now    = datetime.now().isoformat()
+    conn   = get_connection()
+    for oid in ids:
+        conn.execute("UPDATE outliers SET status=?, reviewed_at=? WHERE id=?", (status, now, oid))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "updated": len(ids)})
+
+
+# ── Closed days ──────────────────────────
+
+@app.get("/api/closed-days")
+@require_auth
+def get_closed_days():
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT c.id, c.date, c.product_id, p.name AS product_name, c.reason
+        FROM closed_days c LEFT JOIN products p ON c.product_id=p.id
+        ORDER BY c.date DESC
+        LIMIT 200
+    """).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.post("/api/closed-days")
+@require_auth
+def add_closed_day():
+    body       = request.get_json(force=True, silent=True) or {}
+    date_str   = str(body.get("date", "")).strip()
+    product_id = body.get("product_id")   # None = global (all products)
+    reason     = str(body.get("reason", "stängt")).strip()[:200]
+    if not date_str:
+        return jsonify({"error": "Datum krävs"}), 400
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO closed_days (date, product_id, reason) VALUES (?,?,?)",
+            (date_str, product_id, reason)
+        )
+        new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "id": new_id}), 201
+    except Exception as exc:
+        conn.close()
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.delete("/api/closed-days/<int:day_id>")
+@require_auth
+def delete_closed_day(day_id):
+    conn = get_connection()
+    conn.execute("DELETE FROM closed_days WHERE id=?", (day_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
 
 
 # ─────────────────────────────────────────

@@ -181,6 +181,36 @@ def init_db() -> None:
             context    TEXT,
             created_at TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS outliers (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id          INTEGER NOT NULL REFERENCES products(id),
+            date                TEXT    NOT NULL,
+            original_value      REAL    NOT NULL,
+            interpolated_value  REAL,
+            status              TEXT    NOT NULL DEFAULT 'pending',
+            reviewed_at         TEXT
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_outliers_unique
+            ON outliers(product_id, date);
+
+        CREATE TABLE IF NOT EXISTS closed_days (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            date       TEXT    NOT NULL,
+            product_id INTEGER REFERENCES products(id),
+            reason     TEXT    NOT NULL DEFAULT ''
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_closed_days_unique
+            ON closed_days(date, product_id);
+
+        CREATE TABLE IF NOT EXISTS model_train_log (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER REFERENCES products(id),
+            trained_at TEXT    NOT NULL,
+            method     TEXT,
+            n_samples  INTEGER,
+            status     TEXT    NOT NULL DEFAULT 'ok'
+        );
     """)
 
     # Safe migrations for older databases

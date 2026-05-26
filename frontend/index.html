@@ -308,6 +308,7 @@
       <button class="nav-btn"        id="nav-waste"     onclick="showSection('waste')">Svinn</button>
       <button class="nav-btn"        id="nav-stock"     onclick="showSection('stock')">Förråd</button>
       <button class="nav-btn"        id="nav-report"    onclick="showSection('report')">Prognosrapport</button>
+      <button class="nav-btn"        id="nav-quality"   onclick="showSection('quality')">Datakvalitet</button>
       <button class="nav-btn"        id="nav-settings"  onclick="showSection('settings')">Inställningar</button>
     </div>
   </nav>
@@ -512,10 +513,11 @@
             <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="fcOrderLabel">Köp in</p><p class="text-2xl font-bold text-amber-400 mt-1" id="sOrder">–</p></div>
             <div class="bg-slate-700/40 border border-slate-700 p-4"><p class="text-xs text-slate-500 uppercase tracking-wider font-medium" id="fcDaysLabel">Förråddagar</p><p class="text-2xl font-bold mt-1" id="sDays">–</p></div>
           </div>
-          <div class="flex items-center gap-2 mb-4">
+          <div class="flex flex-wrap items-center gap-2 mb-1">
             <span id="methodBadge" class="text-xs px-2 py-0.5 bg-slate-700 text-slate-400 border border-slate-600"></span>
             <span id="methodDesc" class="text-xs text-slate-600"></span>
           </div>
+          <div id="historyInfo" class="flex flex-wrap gap-3 text-xs mb-4"></div>
           <div class="relative h-72"><canvas id="forecastChart"></canvas></div>
         </div>
       </div>
@@ -786,6 +788,105 @@
     </div>
   </div>
 
+  <!-- ══════ DATAKVALITET ══════ -->
+  <div id="sec-quality" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Datakvalitet</h2>
+      <div class="flex items-center gap-3">
+        <span id="qualityScanStatus" class="text-xs text-slate-500"></span>
+        <button onclick="triggerQualityScan()" id="qualityScanBtn"
+          class="text-xs bg-rose-800 hover:bg-rose-700 text-white px-4 py-1.5 font-medium transition-colors">
+          Skanna extremvärden
+        </button>
+      </div>
+    </div>
+
+    <!-- Summary KPIs -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-slate-800 border border-slate-700 p-4">
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Genomsnittlig kvalitet</p>
+        <p class="text-3xl font-bold text-emerald-400 mt-1" id="qualityAvgScore">–</p>
+        <p class="text-xs text-slate-600 mt-0.5">av 10</p>
+      </div>
+      <div class="bg-slate-800 border border-slate-700 p-4">
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Produkter med varningar</p>
+        <p class="text-3xl font-bold text-amber-400 mt-1" id="qualityWarningCount">–</p>
+      </div>
+      <div class="bg-slate-800 border border-slate-700 p-4">
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Ogranskade extremvärden</p>
+        <p class="text-3xl font-bold text-rose-400 mt-1" id="qualityOutlierCount">–</p>
+      </div>
+      <div class="bg-slate-800 border border-slate-700 p-4">
+        <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Senast skannad</p>
+        <p class="text-sm font-semibold text-white mt-1 truncate" id="qualityLastScan">–</p>
+      </div>
+    </div>
+
+    <!-- Per-product quality table -->
+    <div class="bg-slate-800 border border-slate-700">
+      <div class="px-5 py-4 border-b border-slate-700">
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Kvalitet per produkt</h3>
+      </div>
+      <div id="qualityTableContainer" class="overflow-x-auto">
+        <p class="text-slate-600 text-sm text-center py-8">Laddar...</p>
+      </div>
+    </div>
+
+    <!-- Outlier review -->
+    <div class="bg-slate-800 border border-slate-700">
+      <div class="px-5 py-4 border-b border-slate-700 flex items-center justify-between">
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Extremvärden att granska</h3>
+        <div class="flex gap-2">
+          <button onclick="bulkReviewOutliers('confirm')"
+            class="text-xs bg-rose-900/50 hover:bg-rose-800 border border-rose-800/50 text-rose-300 px-3 py-1 transition-colors">
+            Bekräfta alla
+          </button>
+          <button onclick="bulkReviewOutliers('keep')"
+            class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1 transition-colors">
+            Behåll alla
+          </button>
+        </div>
+      </div>
+      <div id="outliersContainer" class="p-4">
+        <p class="text-slate-600 text-sm text-center py-4">Inga ogranskade extremvärden.</p>
+      </div>
+    </div>
+
+    <!-- Closed days management -->
+    <div class="bg-slate-800 border border-slate-700">
+      <div class="px-5 py-4 border-b border-slate-700 flex items-center justify-between">
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Stängda dagar</h3>
+        <button onclick="toggleClosedDayForm()" class="text-xs text-slate-400 hover:text-white">+ Lägg till</button>
+      </div>
+      <div id="closedDayForm" class="hidden px-5 py-4 border-b border-slate-700 bg-slate-700/30">
+        <div class="flex flex-wrap gap-3 items-end">
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">Datum</label>
+            <input type="date" id="closedDayDate"
+              class="bg-slate-700 border border-slate-600 px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">Produkt (tomt = alla)</label>
+            <select id="closedDayProduct"
+              class="bg-slate-700 border border-slate-600 px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+              <option value="">Alla produkter (global)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">Orsak</label>
+            <input type="text" id="closedDayReason" placeholder="t.ex. helgdag, renovering"
+              class="w-40 bg-slate-700 border border-slate-600 px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-700">
+          </div>
+          <button onclick="addClosedDay()"
+            class="text-sm bg-rose-800 hover:bg-rose-700 text-white px-4 py-1.5 font-medium transition-colors">Spara</button>
+        </div>
+      </div>
+      <div id="closedDaysContainer" class="p-4">
+        <p class="text-slate-600 text-sm text-center py-4">Inga stängda dagar registrerade.</p>
+      </div>
+    </div>
+  </div>
+
   <!-- ══════ INSTÄLLNINGAR ══════ -->
   <div id="sec-settings" class="section hidden max-w-7xl mx-auto w-full px-6 py-8 space-y-6">
     <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Inställningar &amp; Integrationer</h2>
@@ -988,7 +1089,7 @@ const UPLOAD_TYPES = {
 };
 let _mappingState = {file:null, type:null};
 
-const SECTIONS = ['dash','import','forecast','recs','suppliers','recipes','menu','waste','stock','report','settings'];
+const SECTIONS = ['dash','import','forecast','recs','suppliers','recipes','menu','waste','stock','report','quality','settings'];
 
 // ============================================================
 // Init
@@ -1030,6 +1131,7 @@ function showSection(name) {
   if (name==='waste')     loadWasteReport();
   if (name==='stock')     { loadStockTable(); loadExpiryTable(); }
   if (name==='report')    loadForecastReport();
+  if (name==='quality')   loadQualityReport();
   if (name==='settings')  { loadZettleStatus(); loadWeatherSettings(); loadEvents(); }
 }
 
@@ -1475,8 +1577,28 @@ async function loadForecast(name,days=7){
     const de=document.getElementById('sDays');
     if(fc.days_stock!=null){de.textContent=fc.days_stock;de.className='text-2xl font-bold mt-1 '+statusColor(fc.status);}
     else{de.textContent='–';de.className='text-2xl font-bold mt-1 text-slate-500';}
-    document.getElementById('methodBadge').textContent=fc.method==='prophet'?'Prophet AI':'Glidande medelvärde';
-    document.getElementById('methodDesc').textContent=fc.method==='prophet'?'Prophet-modell med svenska helgdagar':'Exponentiellt viktat glidande medelvärde';
+    const methodLabels = {
+      'combined_np': 'NeuralProphet + XGBoost',
+      'combined':    'Prophet + XGBoost',
+      'neuralprophet': 'NeuralProphet AI',
+      'prophet':     'Prophet AI',
+      'fallback':    'Glidande medelvärde',
+    };
+    const methodDescs = {
+      'combined_np': 'NeuralProphet med auto-regression + XGBoost (60/40)',
+      'combined':    'Prophet med helgdagar + XGBoost (60/40)',
+      'neuralprophet': 'NeuralProphet med auto-regression',
+      'prophet':     'Prophet-modell med svenska helgdagar',
+      'fallback':    'Exponentiellt viktat glidande medelvärde',
+    };
+    document.getElementById('methodBadge').textContent = methodLabels[fc.method] || fc.method || '–';
+    document.getElementById('methodDesc').textContent  = methodDescs[fc.method] || '';
+    // History info + warnings
+    const histEl = document.getElementById('historyInfo');
+    if (histEl) {
+      const w = (fc.history_warnings||[]).map(t=>`<span class="text-amber-400">⚠ ${escHtml(t)}</span>`).join(' ');
+      histEl.innerHTML = `<span class="text-slate-500">Historik: <strong class="text-slate-300">${fc.history_days||'?'} dagar</strong></span>${w ? ' — '+w : ''}`;
+    }
     renderForecastChart(sales,fc);
   } catch(err){ showAlert('Fel: '+err.message,'error'); }
 }
@@ -2823,6 +2945,209 @@ function renderReportRecommendations(products) {
   if (avg >= 85) recs.push('Utmärkt träffsäkerhet! Fortsätt att märka avvikelser i dashboarden för att bibehålla kvaliteten.');
   if (!recs.length) recs.push('Prognoserna ser bra ut. Lägg till händelser i kalendern för att förbättra säsongsjusteringar ytterligare.');
   ul.innerHTML = recs.map(r=>`<li class="flex gap-2 text-slate-400 text-sm"><span class="text-rose-500 flex-shrink-0 mt-0.5">›</span>${escHtml(r)}</li>`).join('');
+}
+
+// ============================================================
+// Data Quality
+// ============================================================
+let _qualityData = [];
+let _outlierIds  = [];
+
+async function loadQualityReport() {
+  try {
+    const res  = await api('/api/data-quality');
+    const data = await res.json();
+    if (!res.ok) { showAlert(data.error || 'Fel vid laddning av kvalitetsrapport', 'error'); return; }
+
+    _qualityData = data.products || [];
+
+    // KPIs
+    const avg = data.avg_quality_score;
+    document.getElementById('qualityAvgScore').textContent   = avg !== null ? avg.toFixed(1) : '–';
+    const warnCount = _qualityData.filter(p => p.warnings?.length > 0).length;
+    document.getElementById('qualityWarningCount').textContent = warnCount;
+    const outlierSum = _qualityData.reduce((s,p) => s + (p.n_outliers_pending || 0), 0);
+    document.getElementById('qualityOutlierCount').textContent = outlierSum;
+
+    const ts = data.training_status?.last_ran;
+    document.getElementById('qualityLastScan').textContent = ts
+      ? new Date(ts).toLocaleString('sv-SE', {dateStyle:'short', timeStyle:'short'})
+      : 'Aldrig';
+
+    renderQualityTable(_qualityData);
+    await loadOutliers();
+    await loadClosedDays();
+
+    // Populate product select for closed days
+    const sel = document.getElementById('closedDayProduct');
+    sel.innerHTML = '<option value="">Alla produkter (global)</option>' +
+      _qualityData.map(p => `<option value="${p.product_id}">${escHtml(p.product)}</option>`).join('');
+  } catch(err) { showAlert(err.message, 'error'); }
+}
+
+function scoreColor(s) {
+  if (s >= 8)  return 'text-emerald-400';
+  if (s >= 5)  return 'text-amber-400';
+  return 'text-rose-400';
+}
+
+function renderQualityTable(products) {
+  const c = document.getElementById('qualityTableContainer');
+  if (!products.length) {
+    c.innerHTML = '<p class="text-slate-600 text-sm text-center py-8">Ingen data tillgänglig.</p>';
+    return;
+  }
+  const rows = products.map(p => {
+    const sc    = p.quality_score || 0;
+    const scCls = scoreColor(sc);
+    const warnHtml = (p.warnings||[]).length
+      ? `<span class="text-amber-400 text-xs">${p.warnings[0]}</span>`
+      : `<span class="text-slate-600 text-xs">OK</span>`;
+    const lastT = p.last_trained
+      ? new Date(p.last_trained).toLocaleDateString('sv-SE')
+      : '–';
+    return `<tr class="border-b border-slate-700/40 hover:bg-slate-700/20">
+      <td class="px-4 py-2.5 text-sm text-white truncate max-w-[160px]">${escHtml(p.product)}</td>
+      <td class="px-4 py-2.5 text-xs text-slate-300 text-center">${p.n_days ?? '–'}</td>
+      <td class="px-4 py-2.5 text-xs text-center ${p.missing_pct > 10 ? 'text-amber-400' : 'text-slate-400'}">${p.missing_pct ?? '–'}%</td>
+      <td class="px-4 py-2.5 text-xs text-center ${p.n_outliers_pending > 0 ? 'text-rose-400' : 'text-slate-600'}">${p.n_outliers_pending ?? 0}</td>
+      <td class="px-4 py-2.5 text-xs text-center ${scCls} font-bold">${sc.toFixed(1)}</td>
+      <td class="px-4 py-2.5 text-xs text-slate-500">${lastT}</td>
+      <td class="px-4 py-2.5 text-xs">${warnHtml}</td>
+    </tr>`;
+  }).join('');
+  c.innerHTML = `<table class="w-full text-left">
+    <thead><tr class="text-slate-500 text-xs uppercase tracking-wider border-b border-slate-700">
+      <th class="px-4 py-3 font-semibold">Produkt</th>
+      <th class="px-4 py-3 font-semibold text-center">Dagar</th>
+      <th class="px-4 py-3 font-semibold text-center">Saknas</th>
+      <th class="px-4 py-3 font-semibold text-center">Extremvärden</th>
+      <th class="px-4 py-3 font-semibold text-center">Kvalitet</th>
+      <th class="px-4 py-3 font-semibold">Senast skannad</th>
+      <th class="px-4 py-3 font-semibold">Varning</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+async function loadOutliers() {
+  const c   = document.getElementById('outliersContainer');
+  const res = await api('/api/outliers?status=pending');
+  const data = await res.json();
+  if (!Array.isArray(data) || !data.length) {
+    c.innerHTML = '<p class="text-slate-600 text-sm text-center py-4">Inga ogranskade extremvärden.</p>';
+    _outlierIds = [];
+    return;
+  }
+  _outlierIds = data.map(o => o.id);
+  const rows = data.map(o => `
+    <div class="flex flex-wrap items-center gap-3 py-2.5 border-b border-slate-700/40 last:border-0">
+      <div class="flex-1 min-w-0">
+        <span class="text-sm text-white font-medium truncate block">${escHtml(o.product)}</span>
+        <span class="text-xs text-slate-500">${o.date} — Värde: <strong class="text-rose-300">${o.original_value}</strong>
+          (medel ${o.mean??'?'}, Z=${o.z_score??'?'})
+          → interpolerat: <strong class="text-emerald-300">${o.interpolated_value}</strong>
+        </span>
+      </div>
+      <div class="flex gap-2 flex-shrink-0">
+        <button onclick="reviewOutlier(${o.id},'confirm')"
+          class="text-xs bg-rose-900/50 hover:bg-rose-800 border border-rose-800/50 text-rose-200 px-3 py-1 transition-colors">
+          Engångshändelse
+        </button>
+        <button onclick="reviewOutlier(${o.id},'keep')"
+          class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1 transition-colors">
+          Behåll värdet
+        </button>
+      </div>
+    </div>`).join('');
+  c.innerHTML = `<div class="divide-y divide-slate-700/0">${rows}</div>`;
+}
+
+async function reviewOutlier(id, action) {
+  try {
+    const res = await api(`/api/outliers/${id}/review`, {method:'PUT', body:JSON.stringify({action})});
+    if (!res.ok) { const d=await res.json(); showAlert(d.error,'error'); return; }
+    await loadOutliers();
+    await loadQualityReport();
+  } catch(err) { showAlert(err.message,'error'); }
+}
+
+async function bulkReviewOutliers(action) {
+  if (!_outlierIds.length) return;
+  try {
+    const res = await api('/api/outliers/review-bulk', {method:'PUT', body:JSON.stringify({ids:_outlierIds, action})});
+    if (!res.ok) { const d=await res.json(); showAlert(d.error,'error'); return; }
+    showAlert(action==='confirm' ? 'Alla bekräftade som engångshändelser' : 'Alla behållna som normala', 'success');
+    await loadOutliers();
+    await loadQualityReport();
+  } catch(err) { showAlert(err.message,'error'); }
+}
+
+async function loadClosedDays() {
+  const c   = document.getElementById('closedDaysContainer');
+  const res = await api('/api/closed-days');
+  const data = await res.json();
+  if (!Array.isArray(data) || !data.length) {
+    c.innerHTML = '<p class="text-slate-600 text-sm text-center py-4">Inga stängda dagar registrerade.</p>';
+    return;
+  }
+  const rows = data.map(d => `
+    <div class="flex items-center gap-3 py-2 border-b border-slate-700/40 last:border-0">
+      <span class="text-sm text-white font-mono">${d.date}</span>
+      <span class="text-xs text-slate-400 flex-1">${d.product_name ? escHtml(d.product_name) : 'Alla produkter'}</span>
+      <span class="text-xs text-slate-500">${escHtml(d.reason||'')}</span>
+      <button onclick="deleteClosedDay(${d.id})" class="text-slate-600 hover:text-rose-400 text-sm ml-2 transition-colors">✕</button>
+    </div>`).join('');
+  c.innerHTML = `<div class="divide-y divide-slate-700/0">${rows}</div>`;
+}
+
+function toggleClosedDayForm() {
+  const f = document.getElementById('closedDayForm');
+  f.classList.toggle('hidden');
+}
+
+async function addClosedDay() {
+  const dateVal   = (document.getElementById('closedDayDate')?.value || '').trim();
+  const productId = document.getElementById('closedDayProduct')?.value || null;
+  const reason    = (document.getElementById('closedDayReason')?.value || '').trim();
+  if (!dateVal) { showAlert('Datum krävs', 'error'); return; }
+  try {
+    const res  = await api('/api/closed-days', {method:'POST', body:JSON.stringify({
+      date: dateVal, product_id: productId ? parseInt(productId) : null, reason
+    })});
+    const data = await res.json();
+    if (!res.ok) { showAlert(data.error, 'error'); return; }
+    document.getElementById('closedDayDate').value   = '';
+    document.getElementById('closedDayReason').value = '';
+    showAlert('Stängd dag sparad', 'success');
+    await loadClosedDays();
+  } catch(err) { showAlert(err.message,'error'); }
+}
+
+async function deleteClosedDay(id) {
+  try {
+    await api(`/api/closed-days/${id}`, {method:'DELETE'});
+    await loadClosedDays();
+  } catch(err) { showAlert(err.message,'error'); }
+}
+
+async function triggerQualityScan() {
+  const btn = document.getElementById('qualityScanBtn');
+  const st  = document.getElementById('qualityScanStatus');
+  btn.disabled = true;
+  btn.textContent = 'Skannar...';
+  st.textContent  = '';
+  try {
+    const res  = await api('/api/data-quality/scan', {method:'POST'});
+    const data = await res.json();
+    st.textContent = data.message || 'Klar';
+    // Poll status for 10 s then reload
+    setTimeout(async () => {
+      await loadQualityReport();
+      st.textContent = '';
+    }, 4000);
+  } catch(err) { showAlert(err.message,'error'); }
+  finally { btn.disabled=false; btn.textContent='Skanna extremvärden'; }
 }
 
 // ============================================================
